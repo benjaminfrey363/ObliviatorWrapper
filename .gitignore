@@ -1,0 +1,6 @@
+
+# ignore big LDBC data
+flat_csv/
+
+# and BDB data
+data/
