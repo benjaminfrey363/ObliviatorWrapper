@@ -1,0 +1,3 @@
+R2,20.0 ORD001,Laptop,1
+R3,30.3 ORD005,Webcam,1
+R5,40.1 ORD003,Keyboard,1

@@ -1,11 +1,12 @@
-# operator3.py (Fixed Filter & Relabeling for Step 3_1)
+# operator3.py (Seamless Pipeline - Step 3 Integration)
 
 import os
 import subprocess
 from pathlib import Path
 import argparse
 import time
-import re # Import regex module for string replacement
+import re
+from typing import Optional # Import Optional for Python < 3.10 type hints
 
 ###########################
 # OBLIVIATOR OPERATOR 3 WRAPPER #
@@ -16,7 +17,6 @@ SCALABLE_OBLIVIOUS_JOIN_C_PATH_REL_TO_CODE_DIR = Path("enclave/scalable_obliviou
 # The string literal placeholder that MUST exist in the C code (manual setup required)
 FILTER_PLACEHOLDER_STRING = "FILTER_PLACEHOLDER_VALUE"
 # Regex to find the placeholder and capture the parts around it
-# This pattern ensures we target the exact line where the filter value is.
 FILTER_PATTERN_REGEX = r"(control_bit\[i\] = \()(\s*)(" + re.escape(FILTER_PLACEHOLDER_STRING) + r")(\s*)( <= arr\[i\]\.key\);)"
 
 
@@ -59,102 +59,104 @@ def _replace_filter_value_in_source(code_dir: Path, target_value: str):
 
 def _run_obliviator_step(
     step_name: str,
-    input_filepath: Path, # The ABSOLUTE path to the original input file for this step
-    obliviator_base_dir: Path, # The base directory for the specific obliviator variant (e.g., ~/obliviator/operator_3)
-    temp_dir: Path, # The temporary directory for this overall Operator 3 run
+    raw_input_filepath: Optional[Path],
+    transformed_input_filepath: Optional[Path], # This is the main input for relabeling and obliviator binary
+    obliviator_base_dir: Path,
+    temp_dir: Path,
     operator_variant: str,
-    # Arguments specific to step 3_1
     filter_key_col: str = "",
     id_col: str = "",
-    filter_threshold_3_1: int = 0 # The numerical threshold for the filter in step 3_1
+    filter_threshold_3_1: Optional[int] = None
 ) -> Path:
     """
     Helper function to run a single obliviator operator step for Operator 3.
+    This function now handles the formatting/relabeling internally based on the step.
     """
-    step_subdir = Path(step_name) # e.g., "3_1"
+    step_subdir = Path(step_name)
 
-    # Define the code directory for this specific step (e.g., ~/obliviator/operator_3/3_1)
     code_dir = obliviator_base_dir / step_subdir
     
     print(f"\n--- Running Obliviator Operator 3, Step {step_name} ({operator_variant} variant) ---")
 
-    # 1. Format input using the specific formatter for this step
-    print(f"Formatting input for Operator 3, Step {step_name}...")
-    format_path = temp_dir / f"op3_{step_name}_format.txt"
-    
-    formatter_script_path = Path(__file__).parent / f"obliviator_formatting/format_operator3_{step_name}.py"
-    
-    formatter_cmd = [
-        "python", str(formatter_script_path),
-        "--filepath", str(input_filepath),
-        "--output_path", str(format_path)
-    ]
-    
-    # Add specific arguments for format_operator3_1.py
+    actual_input_to_obliviator_binary = None
+    mapping_path = temp_dir / f"op3_{step_name}_map.txt"
+
     if step_name == "3_1":
-        if not filter_key_col:
-            raise ValueError(f"For step {step_name}, 'filter_key_col' must be specified.")
-        if not id_col:
-            raise ValueError(f"For step {step_name}, 'id_col' must be specified.")
-        formatter_cmd.extend([
+        # For step 3_1, we format the original raw input CSV
+        print(f"Formatting initial CSV for Operator 3, Step {step_name}...")
+        format_path = temp_dir / f"op3_{step_name}_format.txt"
+        formatter_script_path = Path(__file__).parent / "obliviator_formatting" / "format_operator3_1.py"
+        formatter_cmd = [
+            "python", str(formatter_script_path),
+            "--filepath", str(raw_input_filepath), # Original raw input for 3_1
+            "--output_path", str(format_path),
             "--filter_key_col", filter_key_col,
             "--id_col", id_col
-        ])
+        ]
+        subprocess.run(formatter_cmd, check=True, cwd=Path(__file__).parent)
+        print(f"Formatted input written to {format_path}.")
 
-    subprocess.run(formatter_cmd, check=True, cwd=Path(__file__).parent)
-    print(f"Formatted input written to {format_path}.")
+        # Then relabel the formatted input
+        print(f"Relabeling IDs for Operator 3, Step {step_name} input... (key_index_to_relabel=-1 for 3_1)")
+        relabel_path = temp_dir / f"op3_{step_name}_relabel.txt"
+        relabel_cmd = [
+            "python", "obliviator_formatting/relabel_ids.py",
+            "--input_path", str(format_path),
+            "--output_path", str(relabel_path),
+            "--mapping_path", str(mapping_path),
+            "--key_index_to_relabel", "-1" # Do not relabel the filter key
+        ]
+        subprocess.run(relabel_cmd, check=True, cwd=Path(__file__).parent)
+        print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path}.")
+        actual_input_to_obliviator_binary = relabel_path.resolve()
+    
+    elif step_name in ["3_2", "3_3"]:
+        # For steps 3_2 and 3_3, `transformed_input_filepath` is already the formatted data
+        # (e.g., from transform_3_1_output_to_3_2_input.py or transform_3_2_output_to_3_3_input.py).
+        # We only need to relabel its first column before feeding to obliviator.
+        print(f"Relabeling IDs for Operator 3, Step {step_name} input from transformed data...")
+        relabel_path = temp_dir / f"op3_{step_name}_relabel.txt"
+        relabel_cmd = [
+            "python", "obliviator_formatting/relabel_ids.py",
+            "--input_path", str(transformed_input_filepath), # Input is already transformed/formatted
+            "--output_path", str(relabel_path),
+            "--mapping_path", str(mapping_path),
+            "--key_index_to_relabel", "0" # Assume first column is key and needs relabeling.
+        ]
+        subprocess.run(relabel_cmd, check=True, cwd=Path(__file__).parent)
+        print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path}.")
+        actual_input_to_obliviator_binary = relabel_path.resolve()
+    
+    else:
+        raise ValueError(f"Unsupported step_name: {step_name}")
 
-    # 2. Relabel IDs
-    print(f"Relabeling IDs for Operator 3, Step {step_name} input...")
-    relabel_path = temp_dir / f"op3_{step_name}_relabel.txt"
-    mapping_path = temp_dir / f"op3_{step_name}_map.txt"
-    
-    relabel_cmd = [
-        "python", "obliviator_formatting/relabel_ids.py",
-        "--input_path", str(format_path),
-        "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path)
-    ]
-    
-    # CRITICAL: For step 3_1, we must NOT relabel the filter_key_value (column 0).
-    # We only care about relabeling the ID for reconstruction if needed, but for the filter
-    # the original value of the filter key needs to pass through.
-    if step_name == "3_1":
-        relabel_cmd.append("--key_index_to_relabel")
-        relabel_cmd.append("-1") # Do not relabel any key for this specific operator's input
-        
-    subprocess.run(relabel_cmd, check=True, cwd=Path(__file__).parent)
-    print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path}.")
 
     # --- Apply filter modification if it's step 3_1 and a threshold is provided ---
     filter_modified_in_source = False
     if step_name == "3_1" and filter_threshold_3_1 is not None:
         try:
-            _replace_filter_value_in_source(code_dir, str(filter_threshold_3_1)) # Set the numerical value
+            _replace_filter_value_in_source(code_dir, str(filter_threshold_3_1))
             filter_modified_in_source = True
         except Exception as e:
             print(f"ERROR: Failed to modify filter source code: {e}. Proceeding without modification.")
-            # Do not re-raise, allow the rest to proceed for further debugging if needed.
-    
-    try: # Use a try-finally to ensure source is reverted even if compilation/run fails
+            
+    try:
         # 3. Run Obliviator binary - Build ALWAYS after potential source modification
         print(f"Building Obliviator Operator 3, Step {step_name} ({operator_variant})...")
         subprocess.run(["make", "clean"], cwd=code_dir, check=True)
         subprocess.run(["make"], cwd=code_dir, check=True)
 
-        absolute_path_to_relabel_input = relabel_path.resolve()
-
-        print(f"Build completed. Executing Operator 3, Step {step_name} with input: {absolute_path_to_relabel_input} (absolute path)")
+        print(f"Build completed. Executing Operator 3, Step {step_name} with input: {actual_input_to_obliviator_binary} (absolute path)")
         print(f"obliviator executable will run from CWD: {code_dir}")
 
         subprocess.run(
-            ["./host/parallel", "./enclave/parallel_enc.signed", "1", str(absolute_path_to_relabel_input)],
+            ["./host/parallel", "./enclave/parallel_enc.signed", "1", str(actual_input_to_obliviator_binary)],
             cwd=code_dir
         )
         print(f"Exited Obliviator Operator 3, Step {step_name} successfully.")
 
         # Find and Copy Obliviator's Raw Output
-        obliviator_raw_output_filename = relabel_path.stem + "_output.txt"
+        obliviator_raw_output_filename = Path(actual_input_to_obliviator_binary).stem + "_output.txt"
         obliviator_raw_output_path_absolute = temp_dir / obliviator_raw_output_filename
 
         print(f"DEBUG: Expected raw Obliviator output filename: {obliviator_raw_output_filename}")
@@ -168,23 +170,37 @@ def _run_obliviator_step(
 
     except Exception as e:
         print(f"Error during Obliviator Step {step_name} execution or output retrieval: {e}")
-        raise # Re-raise to propagate the error
+        raise
     finally:
         # --- Revert filter modification after execution ---
-        if filter_modified_in_source: # Only revert if we actually changed it
-            _replace_filter_value_in_source(code_dir, FILTER_PLACEHOLDER_STRING) # Revert to placeholder
+        if filter_modified_in_source:
+            _replace_filter_value_in_source(code_dir, FILTER_PLACEHOLDER_STRING)
 
 
 def obliviator_operator3_pipeline (
-    initial_filepath: str, # The very first input CSV for the entire pipeline
-    filter_key_col_3_1: str, # Column to use as filter key in step 3_1
-    id_col_3_1: str, # Column to use as ID for reconstruction in step 3_1
-    filter_threshold_3_1: int = 0, # The numerical threshold for the filter in step 3_1
-    operator3_variant: str = "default" # "default" or "opaque_shared_memory"
+    initial_filepath: str, # The very first input CSV for the entire pipeline (Table 1 source)
+    filter_key_col_3_1: str,
+    id_col_3_1: str,
+    filter_threshold_3_1: Optional[int] = None,
+    # Arguments for 3_2 transformation
+    join_key_col_3_2_A: str = "",
+    join_key_col_3_2_B_and_values: str = "",
+    
+    # Arguments for 3_2 transformation (Table 2 source)
+    second_table_filepath_3_2: str = "",
+    second_table_key_col_3_2: str = "",
+    second_table_other_cols_3_2: str = "",
+
+    # Arguments for 3_3 transformation
+    col1_from_step2_output_3_3: str = "", # Maps to <col1_value> in obliviator_3_3 input
+    col2_from_step2_output_3_3: str = "", # Maps to <col2_value> in obliviator_3_3 input
+    col3_from_step2_output_3_3: str = "", # Maps to <col3_value> in obliviator_3_3 input
+    
+    operator3_variant: str = "default"
 ):
     """
     Runs the full Obliviator "Operator 3" pipeline (Filter -> Join -> Aggregate)
-    using a generic CSV input for the first step, and pre-staged inputs for subsequent steps.
+    using a generic CSV input for the first step, and transforms data between steps.
     """
     print(f"Running oblivious Operator 3 Pipeline (variant: {operator3_variant}) starting with {initial_filepath}")
 
@@ -204,28 +220,44 @@ def obliviator_operator3_pipeline (
     print("\n--- Initiating Operator 3: Step 3_1 (Filter/Projection) ---")
     step1_output_path = _run_obliviator_step(
         step_name="3_1",
-        input_filepath=Path(initial_filepath).resolve(),
+        raw_input_filepath=Path(initial_filepath).resolve(), # Original CSV here
+        transformed_input_filepath=None, # Not used for step 3_1 here
         obliviator_base_dir=obliviator_base_dir_path,
         temp_dir=temp_dir,
         operator_variant=operator3_variant,
         filter_key_col=filter_key_col_3_1,
         id_col=id_col_3_1,
-        filter_threshold_3_1=filter_threshold_3_1 # Pass the filter threshold
+        filter_threshold_3_1=filter_threshold_3_1
     )
     print(f"Step 3_1 completed. Raw output: {step1_output_path}")
     
     # --- Transformation 3_1_output -> 3_2_input ---
-    # As discussed, 3_2 uses a pre-staged file of a different format.
-    filepath_3_2 = os.path.expanduser("~/obliviator/data/big_data_benchmark/bdb_query3_step2_sample_input.txt")
-    step_3_2_input_actual = Path(filepath_3_2).resolve() 
-    print(f"Step 3_1 output conceptually linked to Step 3_2 input: {step_3_2_input_actual}")
+    print("\n--- Transforming Step 3_1 Output to Step 3_2 Input ---")
+    step_3_2_input_transformed_path = temp_dir / "op3_3_2_input_transformed.txt"
+    
+    second_table_source_path_abs = Path(second_table_filepath_3_2).resolve()
+
+    subprocess.run([
+        "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_1_output_to_3_2_input.py"),
+        "--original_csv_filepath", str(Path(initial_filepath).resolve()), # Table 1 source
+        "--step1_filtered_ids_filepath", str(step1_output_path),
+        "--output_path", str(step_3_2_input_transformed_path),
+        "--id_col_in_original_csv", id_col_3_1,
+        "--join_key_col_3_2_A", join_key_col_3_2_A,
+        "--join_key_col_3_2_B_and_values", join_key_col_3_2_B_and_values,
+        "--second_table_filepath", str(second_table_source_path_abs), # Pass custom second table
+        "--second_table_key_col", second_table_key_col_3_2,
+        "--second_table_other_cols", second_table_other_cols_3_2
+    ], check=True, cwd=Path(__file__).parent)
+    print(f"Transformed input for Step 3_2 written to: {step_3_2_input_transformed_path}")
 
 
     # --- Step 3_2: Join ---
     print("\n--- Initiating Operator 3: Step 3_2 (Join) ---")
     step2_output_path = _run_obliviator_step(
         step_name="3_2",
-        input_filepath=step_3_2_input_actual,
+        raw_input_filepath=None, # Not used for step 3_2
+        transformed_input_filepath=step_3_2_input_transformed_path, # Transformed input here
         obliviator_base_dir=obliviator_base_dir_path,
         temp_dir=temp_dir,
         operator_variant=operator3_variant
@@ -233,17 +265,25 @@ def obliviator_operator3_pipeline (
     print(f"Step 3_2 completed. Raw output: {step2_output_path}")
 
     # --- Transformation 3_2_output -> 3_3_input ---
-    # Similar to above, 3_3 uses a pre-staged file.
-    filepath_3_3 = os.path.expanduser("~/obliviator/data/big_data_benchmark/bdb_query3_step3_sample_input.txt")
-    step_3_3_input_actual = Path(filepath_3_3).resolve()
-    print(f"Step 3_2 output conceptually linked to Step 3_3 input: {step_3_3_input_actual}")
+    print("\n--- Transforming Step 3_2 Output to Step 3_3 Input ---")
+    step_3_3_input_transformed_path = temp_dir / "op3_3_3_input_transformed.txt"
+    subprocess.run([
+        "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_2_output_to_3_3_input.py"),
+        "--step2_raw_output_filepath", str(step2_output_path),
+        "--output_path", str(step_3_3_input_transformed_path),
+        "--col1_from_step2_output", col1_from_step2_output_3_3,
+        "--col2_from_step2_output", col2_from_step2_output_3_3,
+        "--col3_from_step2_output", col3_from_step2_output_3_3
+    ], check=True, cwd=Path(__file__).parent)
+    print(f"Transformed input for Step 3_3 written to: {step_3_3_input_transformed_path}")
 
 
     # --- Step 3_3: Aggregate ---
     print("\n--- Initiating Operator 3: Step 3_3 (Aggregate) ---")
     step3_output_path = _run_obliviator_step(
         step_name="3_3",
-        input_filepath=step_3_3_input_actual,
+        raw_input_filepath=None,
+        transformed_input_filepath=step_3_3_input_transformed_path, # Uses dynamically transformed input
         obliviator_base_dir=obliviator_base_dir_path,
         temp_dir=temp_dir,
         operator_variant=operator3_variant
@@ -264,25 +304,56 @@ def obliviator_operator3_pipeline (
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--initial_filepath", required=True,
-                        help="Path to the initial CSV input for the entire Operator 3 pipeline.")
+                        help="Path to the initial CSV input for the entire Operator 3 pipeline (Table 1 source).")
     parser.add_argument("--filter_key_col_3_1", required=True,
                         help="Name of the column to use as the filter key for Step 3_1.")
     parser.add_argument("--id_col_3_1", required=True,
                         help="Name of the column to use as the ID for reconstruction in Step 3_1.")
     parser.add_argument("--filter_threshold_3_1", type=int, default=None,
                         help="Numerical threshold for the filter in Step 3_1 (e.g., 19800101).")
+    # Arguments for 3_2 transformation (Table 1 data derivation)
+    parser.add_argument("--join_key_col_3_2_A", required=True,
+                        help="Column from initial_filepath to use as JOIN_KEY_A for Step 3_2 input.")
+    parser.add_argument("--join_key_col_3_2_B_and_values", required=True,
+                        help="Comma-separated columns from initial_filepath for JOIN_KEY_B_AND_OTHER_DATA for Step 3_2 input.")
+    
+    # Arguments for 3_2 transformation (Table 2 data derivation)
+    parser.add_argument("--second_table_filepath_3_2", required=True,
+                        help="Path to the custom CSV file to use as the second table for Step 3_2 join.")
+    parser.add_argument("--second_table_key_col_3_2", required=True,
+                        help="Key column from the second_table_filepath_3_2 (e.g., 'long_string_col').")
+    parser.add_argument("--second_table_other_cols_3_2", required=True,
+                        help="Comma-separated other columns from the second_table_filepath_3_2 (e.g., 'id_val,number_val').")
+
+    # Arguments for 3_3 transformation
+    parser.add_argument("--col1_from_step2_output_3_3", required=True,
+                        help="Maps to <col1_value> in obliviator_3_3 input (e.g., 't1_id').")
+    parser.add_argument("--col2_from_step2_output_3_3", required=True,
+                        help="Maps to <col2_value> in obliviator_3_3 input (e.g., 't1_numeric').")
+    parser.add_argument("--col3_from_step2_output_3_3", required=True,
+                        help="Maps to <col3_value> in obliviator_3_3 input (e.g., 't2_quantity').")
+
     parser.add_argument("--operator3_variant", choices=["default", "opaque_shared_memory"], default="default",
                         help="Specify the Operator 3 variant.")
     args = parser.parse_args()
 
-    # Expand user path for the initial input file
+    # Expand user paths for input files
     args.initial_filepath = os.path.expanduser(args.initial_filepath)
+    args.second_table_filepath_3_2 = os.path.expanduser(args.second_table_filepath_3_2)
 
     obliviator_operator3_pipeline(
         args.initial_filepath,
         args.filter_key_col_3_1,
         args.id_col_3_1,
         args.filter_threshold_3_1,
+        args.join_key_col_3_2_A,
+        args.join_key_col_3_2_B_and_values,
+        args.second_table_filepath_3_2,
+        args.second_table_key_col_3_2,
+        args.second_table_other_cols_3_2,
+        args.col1_from_step2_output_3_3,
+        args.col2_from_step2_output_3_3,
+        args.col3_from_step2_output_3_3,
         args.operator3_variant
     )
 
