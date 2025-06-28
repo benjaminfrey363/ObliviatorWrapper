@@ -20,11 +20,18 @@ def relabel_ids ( input_path , output_path , mapping_path ):
         outfile.write(header)
         # Process the rest of the lines with remapping
         for line in infile:
-            a_str, b_str = line.strip().split()
-            a_mapped = get_or_assign_id(a_str)
-            b_mapped = get_or_assign_id(b_str)
-            outfile.write(f"{a_mapped} {b_mapped}\n")
-    # Write mapping file
+            parts = line.strip().split(maxsplit=1) # Split only on the first space
+            if len(parts) == 2:
+                a_str, b_str = parts # a_str is original_id, b_str is projected_string_part
+                a_mapped = get_or_assign_id(a_str)
+                # For 'Operator 1', the 'value' (b_str) is not an ID that needs remapping.
+                # It's the string part we want to preserve.
+                outfile.write(f"{a_mapped} {b_str}\n")
+            else:
+                # Handle unexpected line formats, just write them as-is
+                outfile.write(line)
+                print(f"Warning: relabel_ids encountered unexpected line format: {line.strip()}")
+    # Write mapping file: mapped_id original_id
     with open(mapping_path, "w") as f:
         for original, mapped in id_map.items():
             f.write(f"{mapped} {original}\n")
@@ -41,4 +48,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
+    
