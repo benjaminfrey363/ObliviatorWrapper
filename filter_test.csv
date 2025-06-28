@@ -1,0 +1,7 @@
+record_id,transaction_date,value,description
+R1,19790101,10.5,"Before filter date"
+R2,19800101,20.0,"Exact filter date"
+R3,19850615,30.3,"After filter date"
+R4,19701231,5.0,"Way before filter"
+R5,20000101,40.1,"Well after filter"
+
