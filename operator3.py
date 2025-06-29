@@ -1,4 +1,4 @@
-# operator3.py (Final Output Streamlined)
+# operator3.py (Final Output to Script Directory, Temp Cleanup)
 
 import os
 import subprocess
@@ -7,6 +7,7 @@ import argparse
 import time
 import re
 from typing import Optional # Import Optional for Python < 3.10 type hints
+import shutil # Import shutil for directory removal
 
 ###########################
 # OBLIVIATOR OPERATOR 3 WRAPPER #
@@ -182,6 +183,19 @@ def _run_obliviator_step(
             _replace_filter_value_in_source(code_dir, FILTER_PLACEHOLDER_STRING)
 
 
+def _cleanup_temp_dir(temp_dir_path: Path):
+    """Removes the specified temporary directory and its contents."""
+    if temp_dir_path.exists() and temp_dir_path.is_dir():
+        print(f"\nCleaning up temporary directory: {temp_dir_path}...")
+        try:
+            shutil.rmtree(temp_dir_path)
+            print("Temporary directory cleaned up successfully.")
+        except OSError as e:
+            print(f"Error cleaning up temporary directory {temp_dir_path}: {e}")
+    else:
+        print(f"Temporary directory {temp_dir_path} does not exist or is not a directory. Skipping cleanup.")
+
+
 def obliviator_operator3_pipeline (
     initial_filepath: str, # The very first input CSV for the entire pipeline (Table 1 source)
     filter_key_col_3_1: str,
@@ -201,7 +215,8 @@ def obliviator_operator3_pipeline (
     col2_from_step2_output_3_3: str = "", # Maps to <col2_value> in obliviator_3_3 input
     col3_from_step2_output_3_3: str = "", # Maps to <col3_value> in obliviator_3_3 input
     
-    operator3_variant: str = "default"
+    operator3_variant: str = "default",
+    no_cleanup: bool = False # New argument to skip cleanup
 ):
     """
     Runs the full Obliviator "Operator 3" pipeline (Filter -> Join -> Aggregate)
@@ -209,118 +224,133 @@ def obliviator_operator3_pipeline (
     """
     print(f"Running oblivious Operator 3 Pipeline (variant: {operator3_variant}) starting with {initial_filepath}")
 
+    # The final output file will be written directly to the script's execution directory
+    final_output_file_name = "final_op3_pipeline_output.txt"
+    ultimate_final_output_path = Path(os.getcwd()) / final_output_file_name # Output to current working directory
+    # OR: Path(__file__).parent / final_output_file_name if you always want it next to the script
+
+    # Create temporary directory for intermediate files
     temp_dir = Path("tmp_operator3_pipeline")
     temp_dir.mkdir(exist_ok=True)
-    print("Created temp directory " + str(temp_dir))
-
-    obliviator_base_dir_path = None
-    if operator3_variant == "default":
-        obliviator_base_dir_path = Path(os.path.expanduser("~/obliviator/operator_3"))
-    elif operator3_variant == "opaque_shared_memory":
-        obliviator_base_dir_path = Path(os.path.expanduser("~/obliviator/opaque_shared_memory/operator_3"))
-    else:
-        raise ValueError(f"Unknown operator3_variant: {operator3_variant}.")
-
-    # --- Step 3_1: Filter/Projection ---
-    print("\n--- Initiating Operator 3: Step 3_1 (Filter/Projection) ---")
-    step1_output_path = _run_obliviator_step(
-        step_name="3_1",
-        raw_input_filepath=Path(initial_filepath).resolve(), # Original CSV here
-        transformed_input_filepath=None, # Not used for step 3_1 here
-        obliviator_base_dir=obliviator_base_dir_path,
-        temp_dir=temp_dir,
-        operator_variant=operator3_variant,
-        filter_key_col=filter_key_col_3_1,
-        id_col=id_col_3_1,
-        filter_threshold_3_1=filter_threshold_3_1
-    )
-    print(f"Step 3_1 completed. Raw output: {step1_output_path}")
-    
-    # --- Transformation 3_1_output -> 3_2_input ---
-    print("\n--- Transforming Step 3_1 Output to Step 3_2 Input ---")
-    step_3_2_input_transformed_path = temp_dir / "op3_3_2_input_transformed.txt"
-    
-    second_table_source_path_abs = Path(second_table_filepath_3_2).resolve()
-
-    subprocess.run([
-        "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_1_output_to_3_2_input.py"),
-        "--original_csv_filepath", str(Path(initial_filepath).resolve()), # Table 1 source
-        "--step1_filtered_ids_filepath", str(step1_output_path),
-        "--output_path", str(step_3_2_input_transformed_path),
-        "--id_col_in_original_csv", id_col_3_1,
-        "--join_key_col_3_2_A", join_key_col_3_2_A,
-        "--join_key_col_3_2_B_and_values", join_key_col_3_2_B_and_values,
-        "--second_table_filepath", str(second_table_source_path_abs), # Pass custom second table
-        "--second_table_key_col", second_table_key_col_3_2,
-        "--second_table_other_cols", second_table_other_cols_3_2
-    ], check=True, cwd=Path(__file__).parent)
-    print(f"Transformed input for Step 3_2 written to: {step_3_2_input_transformed_path}")
+    print("Created temporary directory for intermediate files: " + str(temp_dir))
 
 
-    # --- Step 3_2: Join ---
-    print("\n--- Initiating Operator 3: Step 3_2 (Join) ---")
-    step2_output_path = _run_obliviator_step(
-        step_name="3_2",
-        raw_input_filepath=None, # Not used for step 3_2
-        transformed_input_filepath=step_3_2_input_transformed_path, # Transformed input here
-        obliviator_base_dir=obliviator_base_dir_path,
-        temp_dir=temp_dir,
-        operator_variant=operator3_variant
-    )
-    print(f"Step 3_2 completed. Raw output: {step2_output_path}")
+    # Use a try-finally block to ensure cleanup happens
+    try:
+        obliviator_base_dir_path = None
+        if operator3_variant == "default":
+            obliviator_base_dir_path = Path(os.path.expanduser("~/obliviator/operator_3"))
+        elif operator3_variant == "opaque_shared_memory":
+            obliviator_base_dir_path = Path(os.path.expanduser("~/obliviator/opaque_shared_memory/operator_3"))
+        else:
+            raise ValueError(f"Unknown operator3_variant: {operator3_variant}.")
 
-    # --- Transformation 3_2_output -> 3_3_input ---
-    print("\n--- Transforming Step 3_2 Output to Step 3_3 Input ---")
-    step_3_3_input_transformed_path = temp_dir / "op3_3_3_input_transformed.txt"
-    subprocess.run([
-        "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_2_output_to_3_3_input.py"),
-        "--step2_raw_output_filepath", str(step2_output_path),
-        "--output_path", str(step_3_3_input_transformed_path),
-        "--col1_from_step2_output", col1_from_step2_output_3_3,
-        "--col2_from_step2_output", col2_from_step2_output_3_3,
-        "--col3_from_step2_output", col3_from_step2_output_3_3
-    ], check=True, cwd=Path(__file__).parent)
-    print(f"Transformed input for Step 3_3 written to: {step_3_3_input_transformed_path}")
+        # --- Step 3_1: Filter/Projection ---
+        print("\n--- Initiating Operator 3: Step 3_1 (Filter/Projection) ---")
+        step1_output_path = _run_obliviator_step(
+            step_name="3_1",
+            raw_input_filepath=Path(initial_filepath).resolve(), # Original CSV here
+            transformed_input_filepath=None, # Not used for step 3_1 here
+            obliviator_base_dir=obliviator_base_dir_path,
+            temp_dir=temp_dir,
+            operator_variant=operator3_variant,
+            filter_key_col=filter_key_col_3_1,
+            id_col=id_col_3_1,
+            filter_threshold_3_1=filter_threshold_3_1
+        )
+        print(f"Step 3_1 completed. Raw output: {step1_output_path}")
+        
+        # --- Transformation 3_1_output -> 3_2_input ---
+        print("\n--- Transforming Step 3_1 Output to Step 3_2 Input ---")
+        step_3_2_input_transformed_path = temp_dir / "op3_3_2_input_transformed.txt"
+        
+        second_table_source_path_abs = Path(second_table_filepath_3_2).resolve()
+
+        subprocess.run([
+            "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_1_output_to_3_2_input.py"),
+            "--original_csv_filepath", str(Path(initial_filepath).resolve()), # Table 1 source
+            "--step1_filtered_ids_filepath", str(step1_output_path),
+            "--output_path", str(step_3_2_input_transformed_path),
+            "--id_col_in_original_csv", id_col_3_1, # Use correct ID col for step 3_1 in transform
+            "--join_key_col_3_2_A", join_key_col_3_2_A,
+            "--join_key_col_3_2_B_and_values", join_key_col_3_2_B_and_values,
+            "--second_table_filepath", str(second_table_source_path_abs), # Pass custom second table
+            "--second_table_key_col", second_table_key_col_3_2,
+            "--second_table_other_cols", second_table_other_cols_3_2
+        ], check=True, cwd=Path(__file__).parent)
+        print(f"Transformed input for Step 3_2 written to: {step_3_2_input_transformed_path}")
 
 
-    # --- Step 3_3: Aggregate ---
-    # This mapping_path is implicitly created by _run_obliviator_step for 3_3
-    mapping_path_3_3_for_revert = temp_dir / f"op3_3_3_map.txt" 
+        # --- Step 3_2: Join ---
+        print("\n--- Initiating Operator 3: Step 3_2 (Join) ---")
+        step2_output_path = _run_obliviator_step(
+            step_name="3_2",
+            raw_input_filepath=None, # Not used for step 3_2
+            transformed_input_filepath=step_3_2_input_transformed_path, # Transformed input here
+            obliviator_base_dir=obliviator_base_dir_path,
+            temp_dir=temp_dir,
+            operator_variant=operator3_variant
+        )
+        print(f"Step 3_2 completed. Raw output: {step2_output_path}")
 
-    print("\n--- Initiating Operator 3: Step 3_3 (Aggregate) ---")
-    step3_raw_output_path = _run_obliviator_step( # Renamed output variable for clarity
-        step_name="3_3",
-        raw_input_filepath=None,
-        transformed_input_filepath=step_3_3_input_transformed_path,
-        obliviator_base_dir=obliviator_base_dir_path,
-        temp_dir=temp_dir,
-        operator_variant=operator3_variant
-    )
-    print(f"Step 3_3 completed. Raw output: {step3_raw_output_path}")
+        # --- Transformation 3_2_output -> 3_3_input ---
+        print("\n--- Transforming Step 3_2 Output to Step 3_3 Input ---")
+        step_3_3_input_transformed_path = temp_dir / "op3_3_3_input_transformed.txt"
+        subprocess.run([
+            "python", str(Path(__file__).parent / "obliviator_formatting/transform_3_2_output_to_3_3_input.py"),
+            "--step2_raw_output_filepath", str(step2_output_path),
+            "--output_path", str(step_3_3_input_transformed_path),
+            "--col1_from_step2_output", col1_from_step2_output_3_3,
+            "--col2_from_step2_output", col2_from_step2_output_3_3,
+            "--col3_from_step2_output", col3_from_step2_output_3_3
+        ], check=True, cwd=Path(__file__).parent)
+        print(f"Transformed input for Step 3_3 written to: {step_3_3_input_transformed_path}")
 
-    # --- Final Output Reverse Relabeling ---
-    print("\n--- Reverting IDs in Final Aggregation Output ---")
-    # Directly write the reverse-relabelled output to the final pipeline output file
-    ultimate_final_output_path = temp_dir / "final_op3_pipeline_output.txt" # This is the target
-    
-    # Capture stdout/stderr of reverse_relabel_ids.py for debugging
-    reverse_relabel_process = subprocess.run(
-        ["python", "obliviator_formatting/reverse_relabel_ids.py",
-         "--input_path", str(step3_raw_output_path), # Output of obliviator_3_3
-         "--output_path", str(ultimate_final_output_path), # Direct output to final file
-         "--mapping_path", str(mapping_path_3_3_for_revert), # Use the mapping for Step 3_3's input
-         "--key_index_to_relabel", "0" # Relabel only the first column (the aggregated key)
-        ], 
-        check=True, 
-        cwd=Path(__file__).parent,
-        capture_output=True, # Capture output
-        text=True # Decode as text
-    )
-    print(f"Reverse Relabeling stdout:\n{reverse_relabel_process.stdout}") # Print captured stdout
-    if reverse_relabel_process.stderr:
-        print(f"Reverse Relabeling stderr:\n{reverse_relabel_process.stderr}") # Print captured stderr
 
-    print(f"\n✅ Obliviator Operator 3 Pipeline completed. Final output written to: {ultimate_final_output_path}\n\n")
+        # --- Step 3_3: Aggregate ---
+        mapping_path_3_3_for_revert = temp_dir / f"op3_3_3_map.txt" 
+
+        print("\n--- Initiating Operator 3: Step 3_3 (Aggregate) ---")
+        step3_raw_output_path = _run_obliviator_step( # Renamed output variable for clarity
+            step_name="3_3",
+            raw_input_filepath=None,
+            transformed_input_filepath=step_3_3_input_transformed_path,
+            obliviator_base_dir=obliviator_base_dir_path,
+            temp_dir=temp_dir,
+            operator_variant=operator3_variant
+        )
+        print(f"Step 3_3 completed. Raw output: {step3_raw_output_path}")
+
+        # --- Final Output Reverse Relabeling ---
+        print("\n--- Reverting IDs in Final Aggregation Output ---")
+        
+        reverse_relabel_process = subprocess.run(
+            ["python", "obliviator_formatting/reverse_relabel_ids.py",
+             "--input_path", str(step3_raw_output_path),
+             "--output_path", str(ultimate_final_output_path), # Direct output to final file outside temp_dir
+             "--mapping_path", str(mapping_path_3_3_for_revert),
+             "--key_index_to_relabel", "0"
+            ], 
+            check=True, 
+            cwd=Path(__file__).parent,
+            capture_output=True,
+            text=True
+        )
+        print(f"Reverse Relabeling stdout:\n{reverse_relabel_process.stdout}")
+        if reverse_relabel_process.stderr:
+            print(f"Reverse Relabeling stderr:\n{reverse_relabel_process.stderr}")
+
+        print(f"\n✅ Obliviator Operator 3 Pipeline completed. Final output written to: {ultimate_final_output_path}\n\n")
+
+    except Exception as e:
+        print(f"\nFATAL ERROR during pipeline execution: {e}")
+        raise 
+    finally:
+        # --- Cleanup temporary directory ---
+        if not no_cleanup:
+            _cleanup_temp_dir(temp_dir)
+        else:
+            print(f"\nSkipping cleanup of {temp_dir}. Temporary files preserved for debugging.")
 
 
 def main():
@@ -357,6 +387,8 @@ def main():
 
     parser.add_argument("--operator3_variant", choices=["default", "opaque_shared_memory"], default="default",
                         help="Specify the Operator 3 variant.")
+    parser.add_argument("--no_cleanup", action="store_true",
+                        help="Do not clean up temporary directories after execution. Useful for debugging.")
     args = parser.parse_args()
 
     # Expand user paths for input files
@@ -376,7 +408,8 @@ def main():
         args.col1_from_step2_output_3_3,
         args.col2_from_step2_output_3_3,
         args.col3_from_step2_output_3_3,
-        args.operator3_variant
+        args.operator3_variant,
+        args.no_cleanup
     )
 
 

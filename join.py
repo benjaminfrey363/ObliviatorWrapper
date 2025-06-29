@@ -1,115 +1,68 @@
+# obliviator_formatting/format_join.py (Configurable ID Columns)
 
-import os
-import subprocess
-from pathlib import Path
+import pandas as pd
 import argparse
 
-###########################
-# OBLIVIATOR JOIN WRAPPER #
-###########################
+######################################
+# Format data for an obliviator join #
+######################################
 
-# Top-level script to execute an obliviator join
-# Take as inputs filenames of objects to be joined and the join key of each object
-# (join keys are to be matched, so should be equivalent to each other. Passed as separate
-# arguments for case where they have different names, e.g. join of Person.id with Comment.CreatorPersonId)
-# Finally, take as argument output path to write output of join.
-# Output will consist of matched join key pairs.
+def format_join(filepath1: str, filepath2: str, join_key1: str, id_col1: str, join_key2: str, id_col2: str, output_path: str):
+    """
+    Formats two CSV files into a single concatenated file for Obliviator join.
+    The format is: <num_rows_table1> <num_rows_table2>\n
+                  <join_key_value> <unique_id_value>\n... (for table1)
+                  <join_key_value> <unique_id_value>\n... (for table2)
 
-def obliviator_join ( 
-    filepath1: str, 
-    filepath2: str, 
-    join_key1: str, 
-    join_key2: str, 
-):
-    
-    print("Running oblivious join of " + filepath1 + " with join key " + join_key1 + " and " + filepath2 + " with join key " + join_key2)
+    Args:
+        filepath1 (str): Path to the first CSV file.
+        filepath2 (str): Path to the second CSV file.
+        join_key1 (str): The column name to use as the join key in filepath1.
+        id_col1 (str): The column name to use as the unique ID in filepath1.
+        join_key2 (str): The column name to use as the join key in filepath2.
+        id_col2 (str): The column name to use as the unique ID in filepath2.
+        output_path (str): Path to the output formatted file.
+    """
+    # Load CSVs
+    df1 = pd.read_csv(filepath1, sep="|")
+    df2 = pd.read_csv(filepath2, sep="|")
 
-    # Create temp directory
-    temp_dir = Path("tmp_join")
-    temp_dir.mkdir(exist_ok=True)
+    # Validate required columns
+    for col, path, df in [(join_key1, filepath1, df1), (id_col1, filepath1, df1),
+                          (join_key2, filepath2, df2), (id_col2, filepath2, df2)]:
+        if col not in df.columns:
+            raise ValueError(f"Column '{col}' not found in {path}")
 
-    print("Created temp directory " + str(temp_dir))
+    # Prepare t1 dataframe (join_key and id)
+    t1 = pd.DataFrame({"key": df1[join_key1], "uid": df1[id_col1]})
 
-    #######################################
-    # 1. Format input for obliviator join #
-    #######################################
-    
-    print("Formatting input CSVs for obliviator join...")
-    format_path = temp_dir / "format.txt"
-    subprocess.run([
-        "python", "obliviator_formatting/format_join.py",
-        "--filepath1", filepath1, 
-        "--filepath2", filepath2,
-        "--join_key1", join_key1, 
-        "--join_key2", join_key2,
-        "--output_path", str(format_path)
-  ], check=True, cwd=Path(__file__).parent)
-    print("Formatted input written to " + str(format_path) + ".")
+    # Prepare t2 dataframe (join_key and id)
+    t2 = pd.DataFrame({"key": df2[join_key2], "uid": df2[id_col2]})
 
-    ###################################################
-    # 2. Relabel IDs to reduce into Obliviators range #
-    ###################################################
+    # Format header
+    header = f"{len(t1)} {len(t2)}"
 
-    print("Relabeling IDs...")
-    relabel_path = temp_dir / "relabel.txt"
-    mapping_path = temp_dir / "map.txt"
-    subprocess.run([
-        "python", "obliviator_formatting/relabel_ids.py",
-        "--input_path", str(format_path),
-        "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path)
-    ],check=True, cwd=Path(__file__).parent)
-    print("Relabeled input written to " + str(relabel_path) + ", relabel map written to " + str(mapping_path) + ".")
+    # Format lines
+    lines = [f"{row['key']} {row['uid']}" for _, row in pd.concat([t1, t2], ignore_index=True).iterrows()]
 
-    ##########################
-    # 3. Run Obliviator Join #
-    ##########################
-
-    print("Running Obliviator join...")
-    obliv_output_path = temp_dir / "obliv_output.txt"
-    code_dir = os.path.expanduser("~/obliviator/join_kks")
-
-    subprocess.run(["make", "clean"], cwd=code_dir, check=True)
-    subprocess.run(["make", "L3=1"], cwd=code_dir, check=True)
-
-    print("Build completed. Executing join with")
-    print("\tInput path: " + str(relabel_path))
-    print("\tOutput path: " + str(obliv_output_path))
-    subprocess.run([
-        "./app",
-        "../" + str(obliv_output_path), "../" + str(relabel_path)
-    ],cwd=code_dir,check=True)
-    print("Exited Obliviator join successfully, output written to " + str(obliv_output_path) + ".")
-
-    ######################
-    # 4. Reverse Relabel #
-    ######################
-
-    print("Reverse-relabeling IDs...")
-    output_path = temp_dir / "output.txt"
-
-    subprocess.run([
-        "python", "obliviator_formatting/reverse_relabel_ids.py",
-        "--input_path", str(obliv_output_path),
-        "--output_path", str(output_path),
-        "--mapping_path", str(mapping_path)
-    ],check=True, cwd=Path(__file__).parent)
-    print("Reverse-relabeled output written to " + str(output_path) + ".\n\n")
-
-    print(f"✅ Output of Obliviator join written to: {output_path}\n\n")  
-    return  
+    # Write to file
+    with open(output_path, "w") as f:
+        f.write("\n".join([header] + lines))
+    return
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--filepath1", default="flat_csv/dynamic__Person.csv")
-    parser.add_argument("--filepath2", default="flat_csv/dynamic__Comment.csv")
-    parser.add_argument("--join_key1", default="id")
-    parser.add_argument("--join_key2", default="CreatorPersonId")
+    parser.add_argument("--filepath1", required=True)
+    parser.add_argument("--filepath2", required=True)
+    parser.add_argument("--join_key1", required=True)
+    parser.add_argument("--id_col1", required=True, help="Column in filepath1 to use as unique ID.")
+    parser.add_argument("--join_key2", required=True)
+    parser.add_argument("--id_col2", required=True, help="Column in filepath2 to use as unique ID.")
+    parser.add_argument("--output_path", required=True)
     args = parser.parse_args()
-    obliviator_join(args.filepath1, args.filepath2, args.join_key1, args.join_key2)
+    format_join(args.filepath1, args.filepath2, args.join_key1, args.id_col1, args.join_key2, args.id_col2, args.output_path)
 
 
 if __name__ == "__main__":
     main()
-
