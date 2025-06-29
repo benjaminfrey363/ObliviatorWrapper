@@ -1,4 +1,4 @@
-# operator3.py (Seamless Pipeline - Step 3 Integration)
+# operator3.py (Final Output Streamlined)
 
 import os
 import subprocess
@@ -79,7 +79,8 @@ def _run_obliviator_step(
     print(f"\n--- Running Obliviator Operator 3, Step {step_name} ({operator_variant} variant) ---")
 
     actual_input_to_obliviator_binary = None
-    mapping_path = temp_dir / f"op3_{step_name}_map.txt"
+    # mapping_path is now passed explicitly from pipeline function, as it's needed for final output revert
+    # mapping_path = temp_dir / f"op3_{step_name}_map.txt"
 
     if step_name == "3_1":
         # For step 3_1, we format the original raw input CSV
@@ -99,32 +100,36 @@ def _run_obliviator_step(
         # Then relabel the formatted input
         print(f"Relabeling IDs for Operator 3, Step {step_name} input... (key_index_to_relabel=-1 for 3_1)")
         relabel_path = temp_dir / f"op3_{step_name}_relabel.txt"
+        # Mapping path for step 3_1
+        mapping_path_3_1 = temp_dir / f"op3_3_1_map.txt"
         relabel_cmd = [
             "python", "obliviator_formatting/relabel_ids.py",
             "--input_path", str(format_path),
             "--output_path", str(relabel_path),
-            "--mapping_path", str(mapping_path),
+            "--mapping_path", str(mapping_path_3_1),
             "--key_index_to_relabel", "-1" # Do not relabel the filter key
         ]
         subprocess.run(relabel_cmd, check=True, cwd=Path(__file__).parent)
-        print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path}.")
+        print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path_3_1}.")
         actual_input_to_obliviator_binary = relabel_path.resolve()
     
     elif step_name in ["3_2", "3_3"]:
         # For steps 3_2 and 3_3, `transformed_input_filepath` is already the formatted data
         # (e.g., from transform_3_1_output_to_3_2_input.py or transform_3_2_output_to_3_3_input.py).
-        # We only need to relabel its first column before feeding to obliviator.
+        # We only need to relabel its first column.
         print(f"Relabeling IDs for Operator 3, Step {step_name} input from transformed data...")
         relabel_path = temp_dir / f"op3_{step_name}_relabel.txt"
+        # Mapping path for step 3_2 or 3_3
+        current_mapping_path = temp_dir / f"op3_{step_name}_map.txt" # Define it here
         relabel_cmd = [
             "python", "obliviator_formatting/relabel_ids.py",
             "--input_path", str(transformed_input_filepath), # Input is already transformed/formatted
             "--output_path", str(relabel_path),
-            "--mapping_path", str(mapping_path),
+            "--mapping_path", str(current_mapping_path), # Use current step's map path
             "--key_index_to_relabel", "0" # Assume first column is key and needs relabeling.
         ]
         subprocess.run(relabel_cmd, check=True, cwd=Path(__file__).parent)
-        print(f"Relabeled input written to {relabel_path}, relabel map written to {mapping_path}.")
+        print(f"Relabeled input written to {relabel_path}, relabel map written to {current_mapping_path}.")
         actual_input_to_obliviator_binary = relabel_path.resolve()
     
     else:
@@ -279,26 +284,43 @@ def obliviator_operator3_pipeline (
 
 
     # --- Step 3_3: Aggregate ---
+    # This mapping_path is implicitly created by _run_obliviator_step for 3_3
+    mapping_path_3_3_for_revert = temp_dir / f"op3_3_3_map.txt" 
+
     print("\n--- Initiating Operator 3: Step 3_3 (Aggregate) ---")
-    step3_output_path = _run_obliviator_step(
+    step3_raw_output_path = _run_obliviator_step( # Renamed output variable for clarity
         step_name="3_3",
         raw_input_filepath=None,
-        transformed_input_filepath=step_3_3_input_transformed_path, # Uses dynamically transformed input
+        transformed_input_filepath=step_3_3_input_transformed_path,
         obliviator_base_dir=obliviator_base_dir_path,
         temp_dir=temp_dir,
         operator_variant=operator3_variant
     )
-    print(f"Step 3_3 completed. Raw output: {step3_output_path}")
+    print(f"Step 3_3 completed. Raw output: {step3_raw_output_path}")
 
-    # --- Final Output Copy (for the entire pipeline) ---
-    final_wrapper_output_path = temp_dir / "final_op3_pipeline_output.txt"
-    try:
-        with open(step3_output_path, 'r') as src, open(final_wrapper_output_path, 'w') as dest:
-            dest.write(src.read())
-        print(f"\n✅ Obliviator Operator 3 Pipeline completed. Final output written to: {final_wrapper_output_path}\n\n")
-    except Exception as e:
-        print(f"Error copying final pipeline output: {e}")
-        raise
+    # --- Final Output Reverse Relabeling ---
+    print("\n--- Reverting IDs in Final Aggregation Output ---")
+    # Directly write the reverse-relabelled output to the final pipeline output file
+    ultimate_final_output_path = temp_dir / "final_op3_pipeline_output.txt" # This is the target
+    
+    # Capture stdout/stderr of reverse_relabel_ids.py for debugging
+    reverse_relabel_process = subprocess.run(
+        ["python", "obliviator_formatting/reverse_relabel_ids.py",
+         "--input_path", str(step3_raw_output_path), # Output of obliviator_3_3
+         "--output_path", str(ultimate_final_output_path), # Direct output to final file
+         "--mapping_path", str(mapping_path_3_3_for_revert), # Use the mapping for Step 3_3's input
+         "--key_index_to_relabel", "0" # Relabel only the first column (the aggregated key)
+        ], 
+        check=True, 
+        cwd=Path(__file__).parent,
+        capture_output=True, # Capture output
+        text=True # Decode as text
+    )
+    print(f"Reverse Relabeling stdout:\n{reverse_relabel_process.stdout}") # Print captured stdout
+    if reverse_relabel_process.stderr:
+        print(f"Reverse Relabeling stderr:\n{reverse_relabel_process.stderr}") # Print captured stderr
+
+    print(f"\n✅ Obliviator Operator 3 Pipeline completed. Final output written to: {ultimate_final_output_path}\n\n")
 
 
 def main():
