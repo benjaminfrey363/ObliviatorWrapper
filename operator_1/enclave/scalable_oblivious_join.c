@@ -96,7 +96,7 @@ void soj_scan_1(void *voidargs) {
     elem_t *arr1 = args->arr1;
 
     for (int i = index_start; i < index_end; i++) {
-        cb1[i] = (-1 < arr1[i].key);
+        cb1[i] = (/*MT_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_MT/*MT_FILTER_END*/ < arr1[i].key);
     }
 
     return;
@@ -117,7 +117,7 @@ void scalable_oblivious_join(elem_t *arr, int length1, int length2, char* output
 
     if (number_threads == 1) {
         for (int i = 0; i < length1; i++) {
-            control_bit[i] = (FILTER_PLACEHOLDER_VALUE_OP1_ST < arr[i].key);
+            control_bit[i] = (/*ST_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_ST/*ST_FILTER_END*/ < arr[i].key);
         }  
     }
     else {

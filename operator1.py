@@ -17,55 +17,51 @@ OP1_FILTER_SOURCE_FILE_REL_PATH = Path("enclave/scalable_oblivious_join.c")
 OP1_PLACEHOLDER_MT = "FILTER_PLACEHOLDER_VALUE_OP1_MT" # Multi-threaded filter placeholder
 OP1_PLACEHOLDER_ST = "FILTER_PLACEHOLDER_VALUE_OP1_ST" # Single-threaded filter placeholder
 
-# Regex patterns to find the ENTIRE LINE containing the placeholder.
-# This makes it robust to minor whitespace/formatting differences around the placeholder.
-# We will then reconstruct the line.
-OP1_PATTERN_MT_CAPTURE = r"(cb1\[i\] = \()(\s*)(" + re.escape(OP1_PLACEHOLDER_MT) + r")(\s*)( < arr1\[i\]\.key\);)"
-OP1_PATTERN_ST_CAPTURE = r"(control_bit\[i\] = \()(\s*)(" + re.escape(OP1_PLACEHOLDER_ST) + r")(\s*)( < arr\[i\]\.key;)"
+# Unique comment markers for precise replacement
+MT_COMMENT_START = "/*MT_FILTER_START*/"
+MT_COMMENT_END = "/*MT_FILTER_END*/"
+ST_COMMENT_START = "/*ST_FILTER_START*/"
+ST_COMMENT_END = "/*ST_FILTER_END*/"
 
 
-def _replace_filter_value_in_any_source(
+def _modify_filter_source( # Corrected function name
     source_file_abs_path: Path, 
-    search_regex_pattern: str, # Regex to use for searching
-    search_value: str, # The string to search for (placeholder or number)
-    replace_value: str # The string to replace with (number or placeholder)
+    comment_start: str, # e.g., "/*MT_FILTER_START*/"
+    value_to_find_inside_comments: str, # The literal string to search for (placeholder or number)
+    comment_end: str, # e.g., "/*MT_FILTER_END*/"
+    value_to_replace_with: str, # The literal string to replace with (number or placeholder)
+    is_revert_operation: bool = False # Flag to indicate if this is a revert call
 ):
     """
-    Modifies a C source file to replace a specific string (placeholder or number) with a target value.
+    Modifies a C source file by replacing a specific value within unique inline comments.
+    This ensures extremely precise replacement.
     """
     if not source_file_abs_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_file_abs_path}. Cannot set filter.")
 
     print(f"\n--- DEBUG (Internal): Attempting to modify filter in: {source_file_abs_path} ---")
-    print(f"DEBUG (Internal): Searching for: '{search_value}', Replacing with: '{replace_value}'")
-    print(f"DEBUG (Internal): Using Regex pattern: '{search_regex_pattern}'")
+    print(f"DEBUG (Internal): Operation: {'REVERT' if is_revert_operation else 'SET'}")
+    print(f"DEBUG (Internal): Searching for: '{comment_start}{value_to_find_inside_comments}{comment_end}', Replacing with: '{comment_start}{value_to_replace_with}{comment_end}'")
 
     original_content = ""
     with open(source_file_abs_path, 'r') as f_read: 
         original_content = f_read.read()
 
-    # DEBUG: Print content as Python reads it
-    print(f"\n--- DEBUG (Internal): Content as Python reads it (lines with search_value) ---")
-    found_lines_in_read = [line.strip() for line in original_content.splitlines() if search_value in line]
-    if found_lines_in_read:
-        for line in found_lines_in_read:
-            print(f"  '{line}'")
-        print(f"DEBUG (Internal): Search value '{search_value}' WAS found when Python read the file.")
-    else:
-        print(f"DEBUG (Internal): Search value '{search_value}' was NOT found when Python read the file.")
-    print("--- END Content Preview ---")
+    # Construct the full string to find (including comments)
+    full_string_to_find = f"{comment_start}{value_to_find_inside_comments}{comment_end}"
+    full_string_to_replace_with = f"{comment_start}{value_to_replace_with}{comment_end}"
 
-    # Perform the replacement using the provided regex pattern
-    new_content = re.sub(search_regex_pattern, r"\g<1>\g<2>" + replace_value + r"\g<4>\g<5>", original_content)
+    # Perform direct literal string replacement
+    new_content = original_content.replace(full_string_to_find, full_string_to_replace_with)
     
     if original_content == new_content:
         # If no change, it's a critical error
-        print(f"WARNING (Internal): Regex replacement failed. No change made to {source_file_abs_path}.")
-        if search_value not in original_content:
-            print(f"WARNING (Internal): Search value '{search_value}' was NOT found anywhere in the file content.")
+        print(f"WARNING (Internal): String replacement failed. No change made to {source_file_abs_path}.")
+        if full_string_to_find not in original_content:
+            print(f"WARNING (Internal): Search string '{full_string_to_find}' was NOT found anywhere in the file content.")
         else:
-            print(f"WARNING (Internal): Search value '{search_value}' was found, but regex pattern did not match the context.")
-        raise ValueError("Filter modification failed: Search value not matched in source file for replacement.")
+            print(f"WARNING (Internal): Search string '{full_string_to_find}' was found, but no replacement occurred (perhaps already replaced?).")
+        raise ValueError("Filter modification failed: Search string not found or replacement failed.")
         
     with open(source_file_abs_path, 'w') as f_write:
         f_write.write(new_content)
@@ -161,18 +157,18 @@ def obliviator_operator1 (
     if filter_threshold_op1 is not None:
         try:
             # Set MT filter
-            _replace_filter_value_in_any_source(
+            _modify_filter_source( # Corrected function name
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                OP1_PATTERN_MT_CAPTURE, # Use the MT CAPTURE regex
-                OP1_PLACEHOLDER_MT, # Search for MT placeholder string
-                str(filter_threshold_op1) # Replace with numerical value
+                MT_COMMENT_START, OP1_PLACEHOLDER_MT, MT_COMMENT_END, # Search for MT placeholder string
+                str(filter_threshold_op1), # Replace with numerical value
+                False # is_revert_operation = False
             )
-            # Set ST filter (if different)
-            _replace_filter_value_in_any_source(
+            # Set ST filter
+            _modify_filter_source( # Corrected function name
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                OP1_PATTERN_ST_CAPTURE, # Use the ST CAPTURE regex
-                OP1_PLACEHOLDER_ST, # Search for ST placeholder string
-                str(filter_threshold_op1) # Replace with numerical value
+                ST_COMMENT_START, OP1_PLACEHOLDER_ST, ST_COMMENT_END, # Search for ST placeholder string
+                str(filter_threshold_op1), # Replace with numerical value
+                False # is_revert_operation = False
             )
             filter_modified_in_source = True
         except Exception as e:
@@ -227,18 +223,18 @@ def obliviator_operator1 (
         # --- Revert filter modification after execution ---
         if filter_modified_in_source:
             # Revert MT filter
-            _replace_filter_value_in_any_source(
+            _modify_filter_source( # Corrected function name
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                OP1_PATTERN_MT_CAPTURE, # Regex to find the numerical value
-                str(filter_threshold_op1), # Search for the numerical value
-                OP1_PLACEHOLDER_MT # Replace with the placeholder string
+                MT_COMMENT_START, str(filter_threshold_op1), MT_COMMENT_END, # Search for numerical value with comments
+                OP1_PLACEHOLDER_MT, # Replace with the placeholder string
+                True # is_revert_operation = True
             )
             # Revert ST filter
-            _replace_filter_value_in_any_source(
+            _modify_filter_source( # Corrected function name
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                OP1_PATTERN_ST_CAPTURE, # Regex to find the numerical value
-                str(filter_threshold_op1), # Search for the numerical value
-                OP1_PLACEHOLDER_ST # Replace with the placeholder string
+                ST_COMMENT_START, str(filter_threshold_op1), ST_COMMENT_END, # Search for numerical value with comments
+                OP1_PLACEHOLDER_ST, # Replace with the placeholder string
+                True # is_revert_operation = True
             )
 
 
