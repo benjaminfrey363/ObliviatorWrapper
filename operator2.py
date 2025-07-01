@@ -23,8 +23,8 @@ def _cleanup_temp_dir(temp_dir_path: Path):
 
 def obliviator_operator2 (
     filepath: str,
-    temp_dir: Path, # Moved before operator2_variant
-    ultimate_final_output_path: Path, # Moved before operator2_variant
+    temp_dir: Path, # Pass temp_dir as an argument
+    ultimate_final_output_path: Path, # Pass final output path
     operator2_variant: str = "default" # Now it correctly follows non-default args
 ):
     """
@@ -163,8 +163,8 @@ def main():
     print("Created temporary directory for intermediate files: " + str(temp_dir))
 
     # Define the final output file location
-    final_output_filename = "op2_output.txt" # A specific name for this script's output
-    ultimate_final_output_path = Path(os.getcwd()) / final_output_filename # Output to current working directory
+    final_output_filename = "op2_output.txt"
+    ultimate_final_output_path = Path(os.getcwd()) / final_output_filename
 
     try:
         obliviator_operator2(

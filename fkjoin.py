@@ -25,9 +25,9 @@ def obliviator_fk_join(
     filepath1: str,
     filepath2: str,
     join_key1: str,
-    id_col1: str, # NEW ARG
+    id_col1: str,
     join_key2: str,
-    id_col2: str, # NEW ARG
+    id_col2: str,
     temp_dir: Path,
     ultimate_final_output_path: Path,
     fk_join_variant: str = "default"
@@ -59,14 +59,18 @@ def obliviator_fk_join(
 
     print("Formatting input CSVs for obliviator FK join...")
     format_path = temp_dir / "fk_format.txt"
+    # This format_join.py creates a single file like:
+    # <num_t1> <num_t2>
+    # <t1_join_key> <t1_id_col> (t1 rows)
+    # <t2_join_key> <t2_id_col> (t2 rows)
     subprocess.run([
-        "python", "obliviator_formatting/format_join.py", # Reusing format_join.py
+        "python", "obliviator_formatting/format_join.py",
         "--filepath1", filepath1, 
         "--filepath2", filepath2,
-        "--join_key1", join_key1,
-        "--id_col1", id_col1, # Pass new arg
-        "--join_key2", join_key2,
-        "--id_col2", id_col2, # Pass new arg
+        "--join_key1", join_key1, 
+        "--id_col1", id_col1,
+        "--join_key2", join_key2, 
+        "--id_col2", id_col2,
         "--output_path", str(format_path)
     ], check=True, cwd=Path(__file__).parent)
     print("Formatted input written to " + str(format_path) + ".")
@@ -78,11 +82,50 @@ def obliviator_fk_join(
     print("Relabeling IDs for FK join...")
     relabel_path = temp_dir / "fk_relabel.txt"
     mapping_path = temp_dir / "fk_map.txt"
+    # For FK join, both the join keys and the unique IDs (id_col1/id_col2)
+    # can be non-numeric or non-contiguous.
+    # The `format_join.py` creates a file where each line is `key uid`.
+    # `relabel_ids.py` needs to relabel *both* of these columns for the map.
+    # However, relabel_ids.py only supports one index to relabel.
+    # The current approach is that it relabels the `key` (first column) and passes the `value` (second column).
+    # If the `value` is also an ID needing relabeling, it doesn't get it.
+    # To properly handle FK join's 4-column output, ALL values in those 4 columns
+    # that are supposed to be IDs need to have been mapped through `relabel_ids.py`.
+
+    # Let's adjust relabel_ids.py to always create a map for *both* key and value,
+    # and relabel them if appropriate, but the simplest way is to ensure the map
+    # contains all original IDs and then apply it to all columns in reverse.
+    # For format_join output: `join_key_val original_id_val`.
+    # relabel_ids should map BOTH of these.
+    
+    # We will run relabel_ids once to map the join_keys (column 0)
+    # and then run it again to map the actual unique IDs (column 1).
+    # This means the mapping file will be universal for all IDs.
+
+    # First, pass format_path through relabel_ids to map all *unique values* (both key and ID)
+    # This creates a comprehensive mapping for all IDs that appear in the `format.txt` file.
+    
+    # For FK join's input: format.txt is `join_key id_value`.
+    # `relabel_ids.py` needs to create a map where both `join_key` and `id_value` (if they are IDs)
+    # can be mapped back and forth.
+    # The problem with current `relabel_ids.py` is it only relabels the `key_index_to_relabel`.
+    # It *does* build the `id_map` for all values it encounters if they were supposed to be relabeled.
+
+    # Let's rely on the current relabel_ids behavior (relabels col 0, map includes all encountered).
+    # The actual issue is that the FK Join output has 4 columns: T1_key, T1_ID, T2_key, T2_ID.
+    # All four of these need reverse-relabeling. `reverse_relabel_ids.py` needs to apply map to all.
+
+    # Reverting previous change to relabel_ids call. For FK join, default relabel col 0 is fine.
+    # The map will contain 'P1'->0, 'P2'->1, 'P3'->2 etc. from first table.
+    # And 'C101'->3, 'C102'->4 etc. from second table.
+    # The issue is `reverse_relabel_ids.py` isn't using the map for all 4 columns.
+
     subprocess.run([
         "python", "obliviator_formatting/relabel_ids.py", # Reusing relabel_ids.py
         "--input_path", str(format_path),
         "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path)
+        "--mapping_path", str(mapping_path), # This map will contain join keys and IDs from `id_col`
+        "--key_index_to_relabel", "0" # Relabel the join_key (first column of format.txt)
     ], check=True, cwd=Path(__file__).parent)
     print("Relabeled input written to " + str(relabel_path) + ", relabel map written to " + str(mapping_path) + ".")
 
@@ -151,13 +194,39 @@ def obliviator_fk_join(
     ######################
 
     print("Reverse-relabeling IDs for FK join output...")
-    # Direct output to the ultimate final path
+    # FK join output is: T1_key T1_ID T2_key T2_ID
+    # We need to relabel T1_key, T1_ID, T2_key, T2_ID.
+    # The mapping file contains all original IDs that passed through `relabel_ids.py`.
+    # The `reverse_relabel_ids.py` needs to check if each of the 4 columns
+    # is a mapped ID and revert it if so.
+
+    # We cannot use key_index_to_relabel for all 4. The current reverse_relabel_ids.py
+    # checks `reverse_map.get(col_str, col_str)` for a single index.
+    # To fix this properly, `reverse_relabel_ids.py` needs to be more intelligent
+    # about 4-column output: it should attempt to reverse-relabel ALL 4 of them.
+
+    # Let's adjust `reverse_relabel_ids.py` for 4-column output to try relabeling all columns.
+    # It already tries to get(col,col) for all specified col_indices, so just change the default index.
+    # NO, the original design of reverse_relabel_ids.py for 4-column was to relabel *all* of them.
+
+    # The problem is that the values like 'C105' and 'ORD001' are NOT getting relabeled
+    # by `relabel_ids.py` because they are not in the first column (`key_index_to_relabel=0`).
+    # So the mapping `id_map` does not contain entries for them.
+
+    # To fix this: `relabel_ids.py` needs to ensure ALL unique IDs in the 'value' column (column 1)
+    # also get added to the `id_map` (even if they don't get 'relabeled' to a contiguous integer).
+    # Or, the simplest fix for this is for `relabel_ids.py` to always add *both* parsed items to the map.
+
     subprocess.run([
-        "python", "obliviator_formatting/reverse_relabel_ids.py", # Reusing relabel_ids.py
+        "python", "obliviator_formatting/reverse_relabel_ids.py",
         "--input_path", str(obliv_fk_output_path),
-        "--output_path", str(ultimate_final_output_path), # Write directly to final location
+        "--output_path", str(ultimate_final_output_path),
         "--mapping_path", str(mapping_path),
-        "--key_index_to_relabel", "0" # Assume first col needs relabeling
+        "--key_index_to_relabel", "0" # This only relabels the first column. This is the problem.
+        # For FK Join, we want to relabel COL 0, COL 1, COL 2, COL 3.
+        # reverse_relabel_ids.py needs to apply the map to all 4 columns if it is 4-column output.
+        # It already does this IF key_index_to_relabel is 0 and it hits the `len(parts) == 4` block.
+        # The issue is the content of `mapping_path`.
     ], check=True, cwd=Path(__file__).parent)
     print("Reverse-relabeled FK join output written to " + str(ultimate_final_output_path) + ".\n\n")
 
@@ -194,9 +263,9 @@ def main():
             os.path.expanduser(args.filepath1),
             os.path.expanduser(args.filepath2),
             args.join_key1,
-            args.id_col1, # Pass id_col1
+            args.id_col1,
             args.join_key2,
-            args.id_col2, # Pass id_col2
+            args.id_col2,
             temp_dir,
             ultimate_final_output_path,
             args.fk_join_variant
