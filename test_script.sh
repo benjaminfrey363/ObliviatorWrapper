@@ -20,12 +20,17 @@ python fkjoin.py \
     --fk_join_variant default;
 
 
-
+python operator1.py \
+	--filepath ~/obliviator/data/op1_test_data.csv \
+	--id_col my_id \
+	--string_to_project_col my_string_data \
+	--filter_threshold_op1 -1 \
+	--operator1_variant default;
 
 
 python operator2.py \
     --filepath ~/obliviator/data/op2_test_data.txt \
-    --operator2_variant default
+    --operator2_variant default;
 
 
 python operator3.py \
@@ -41,4 +46,4 @@ python operator3.py \
     --col1_from_step2_output_3_3 t1_id \
     --col2_from_step2_output_3_3 t1_numeric \
     --col3_from_step2_output_3_3 t2_quantity \
-    --operator3_variant default
+    --operator3_variant default;
