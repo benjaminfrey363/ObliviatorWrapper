@@ -15,56 +15,68 @@ def format_for_fk_join(
     output_path: str
 ):
     """
-    Reads two CSV files and formats them for the Obliviator FK Join operator,
-    matching the C program's expected input format.
-
-    - The output format is:
-      <num_rows_table1> <num_rows_table2>
-      <key> <payload>
-      ...
-
-    Args:
-        filepath1 (str): Path to the primary table CSV.
-        key1 (str): The join key column in the primary table.
-        payload1_cols (list[str]): Payload columns from the primary table.
-        filepath2 (str): Path to the foreign table CSV.
-        key2 (str): The join key column in the foreign table.
-        payload2_cols (list[str]): Payload columns from the foreign table.
-        output_path (str): Path for the combined and formatted output file.
+    Reads two CSV files and formats them for an Obliviator Join operator.
     """
-    print("--- Formatting CSVs for FK Join ---")
+    print("--- Formatting CSVs for Join ---")
     table1_rows = []
     table2_rows = []
 
-    # Process the first (primary) table
-    with open(filepath1, mode='r', newline='', encoding='utf-8') as infile:
-        reader = csv.DictReader(infile)
-        header = reader.fieldnames
-        if not header: raise ValueError(f"CSV file is empty or has no header: {filepath1}")
-        required_cols = {key1, *payload1_cols}
-        if not required_cols.issubset(header): raise ValueError(f"Missing columns in {filepath1}")
-        
-        for row in reader:
-            join_key = row[key1]
-            payload_string = ",".join(row[col] for col in payload1_cols)
-            table1_rows.append(f"{join_key} {payload_string}\n")
+    # --- Process the first table ---
+    try:
+        # FIX: Use 'utf-8-sig' to automatically handle Byte Order Marks (BOM)
+        with open(filepath1, mode='r', newline='', encoding='utf-8-sig') as infile:
+            reader = csv.DictReader(infile)
+            header1 = reader.fieldnames
+            if not header1:
+                raise ValueError(f"CSV file is empty or has no header: {filepath1}")
+            
+            required_cols1 = {key1, *payload1_cols}
+            # FIX: Provide a much more detailed error message if columns are missing
+            if not required_cols1.issubset(header1):
+                missing = sorted(list(required_cols1 - set(header1)))
+                raise ValueError(
+                    f"Missing columns in {filepath1}.\n"
+                    f"  Required: {sorted(list(required_cols1))}\n"
+                    f"  Found:    {header1}\n"
+                    f"  Missing:  {missing}"
+                )
+            
+            for row in reader:
+                join_key = row[key1]
+                payload_string = ",".join(row[col] for col in payload1_cols)
+                table1_rows.append(f"{join_key} {payload_string}\n")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Input file not found: {filepath1}")
 
-    # Process the second (foreign) table
-    with open(filepath2, mode='r', newline='', encoding='utf-8') as infile:
-        reader = csv.DictReader(infile)
-        header = reader.fieldnames
-        if not header: raise ValueError(f"CSV file is empty or has no header: {filepath2}")
-        required_cols = {key2, *payload2_cols}
-        if not required_cols.issubset(header): raise ValueError(f"Missing columns in {filepath2}")
 
-        for row in reader:
-            join_key = row[key2]
-            payload_string = ",".join(row[col] for col in payload2_cols)
-            table2_rows.append(f"{join_key} {payload_string}\n")
+    # --- Process the second table ---
+    try:
+        with open(filepath2, mode='r', newline='', encoding='utf-8-sig') as infile:
+            reader = csv.DictReader(infile)
+            header2 = reader.fieldnames
+            if not header2:
+                raise ValueError(f"CSV file is empty or has no header: {filepath2}")
 
-    # Write the combined output file with the correct header
+            required_cols2 = {key2, *payload2_cols}
+            if not required_cols2.issubset(header2):
+                missing = sorted(list(required_cols2 - set(header2)))
+                raise ValueError(
+                    f"Missing columns in {filepath2}.\n"
+                    f"  Required: {sorted(list(required_cols2))}\n"
+                    f"  Found:    {header2}\n"
+                    f"  Missing:  {missing}"
+                )
+
+            for row in reader:
+                join_key = row[key2]
+                payload_string = ",".join(row[col] for col in payload2_cols)
+                table2_rows.append(f"{join_key} {payload_string}\n")
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Input file not found: {filepath2}")
+
+
+    # --- Write the combined output file ---
     with open(output_path, "w", encoding='utf-8') as outfile:
-        # CORRECT HEADER: num_rows_table1 num_rows_table2
         outfile.write(f"{len(table1_rows)} {len(table2_rows)}\n")
         outfile.writelines(table1_rows)
         outfile.writelines(table2_rows)
@@ -73,7 +85,7 @@ def format_for_fk_join(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Formats two CSV files for Obliviator FK Join.")
+    parser = argparse.ArgumentParser(description="Formats two CSV files for an Obliviator Join.")
     parser.add_argument("--filepath1", required=True)
     parser.add_argument("--key1", required=True)
     parser.add_argument("--payload1_cols", nargs='+', required=True)

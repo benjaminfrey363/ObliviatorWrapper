@@ -1,0 +1,6 @@
+post_id,author,post_text,commenter,comment_text
+P101,user_A,Hello World!,user_B,Great post!
+P101,user_A,Hello World!,user_C,Welcome!
+P205,user_B,Loving the new features.,user_D,I agree.
+P205,user_B,Loving the new features.,user_A,Thanks for the feedback!
+P404,user_C,Is the server down?,user_A,Looking into it now.
