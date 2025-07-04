@@ -25,6 +25,7 @@ python operator1.py \
 	--id_col my_id \
 	--string_to_project_col my_string_data \
 	--filter_threshold_op1 -1 \
+	--filter_condition_op1 > \
 	--operator1_variant default;
 
 

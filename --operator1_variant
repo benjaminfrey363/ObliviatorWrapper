@@ -1,0 +1,123 @@
+Formatted input for Operator 1 written to tmp_operator1/op1_format.txt.
+make -C third_party/liboblivious clean
+make[1]: Entering directory '/home/azureuser/obliviator/operator_1/third_party/liboblivious'
+rm -rf liboblivious.so liboblivious.a algorithms.o opagedmem.o oram.o algorithms.d opagedmem.d oram.d
+make[1]: Leaving directory '/home/azureuser/obliviator/operator_1/third_party/liboblivious'
+rm -f host/parallel_u.h host/parallel_args.h host/parallel_u.c enclave/parallel_t.h enclave/parallel_args.h enclave/parallel_t.c \
+	common/error.d common/util.d common/error.o common/util.o \
+	host/parallel host/parallel.d host/error.d host/ocalls.d host/parallel.o host/error.o host/ocalls.o \
+	enclave/parallel_enc.signed enclave/parallel_enc enclave/parallel_enc.d enclave/crypto.d enclave/mpi_tls.d enclave/synch.d enclave/threading.d enclave/window.d enclave/scalable_oblivious_join.d enclave/oblivious_compact.d enclave/parallel_enc.o enclave/crypto.o enclave/mpi_tls.o enclave/synch.o enclave/threading.o enclave/window.o enclave/scalable_oblivious_join.o enclave/oblivious_compact.o \
+	enclave/parallel.pub enclave/parallel.pem \
+	hostonly hostonly.d \
+	baselines/bitonic baselines/bitonic.d
+oeedger8r parallel.edl \
+	--untrusted-dir host \
+	--trusted-dir enclave \
+	--search-path /opt/openenclave/share/pkgconfig/../../include \
+	--search-path /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx
+Generating edge routine, for the Open Enclave SDK.
+Processing parallel.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/syscall.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/epoll.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/fcntl.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/ioctl.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/poll.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/signal.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/socket.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/time.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/unistd.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/utsname.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/platform.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/attestation.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/cpu.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/debug.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/thread.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/switchless.edl.
+Processing /opt/openenclave/share/pkgconfig/../../include/openenclave/edl/sgx/tdx_verification.edl.
+Success.
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o host/parallel.o host/parallel.c
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o host/error.o host/error.c
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o host/ocalls.o host/ocalls.c
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o host/parallel_u.o host/parallel_u.c
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o common/error.o common/error.c
+cc -I/usr/include/x86_64-linux-gnu/mpich  -fstack-protector-strong -D_FORTIFY_SOURCE=2 -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o common/util.o common/util.c
+make -C third_party/liboblivious
+make[1]: Entering directory '/home/azureuser/obliviator/operator_1/third_party/liboblivious'
+cc -std=c11 -pedantic -pedantic-errors -O3 -Wall -Wextra -MMD -Iinclude  -c -o algorithms.o algorithms.c
+cc -std=c11 -pedantic -pedantic-errors -O3 -Wall -Wextra -MMD -Iinclude  -c -o opagedmem.o opagedmem.c
+cc -std=c11 -pedantic -pedantic-errors -O3 -Wall -Wextra -MMD -Iinclude  -c -o oram.o oram.c
+cc -shared algorithms.o opagedmem.o oram.o  -o liboblivious.so
+ar rcs liboblivious.a algorithms.o opagedmem.o oram.o
+make[1]: Leaving directory '/home/azureuser/obliviator/operator_1/third_party/liboblivious'
+cc -Lthird_party/liboblivious host/parallel.o host/error.o host/ocalls.o host/parallel_u.o common/error.o common/util.o -Wl,-Bsymbolic-functions -Wl,-z,relro -L/usr/lib/x86_64-linux-gnu -lmpich -lm -lbacktrace -lpthread -lrt  -Wl,-z,noexecstack -L/opt/openenclave/share/pkgconfig/../../lib/openenclave/host -loehost -ldl -lpthread -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto  -lmbedcrypto -l:liboblivious.a -o host/parallel
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/parallel_enc.o enclave/parallel_enc.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/crypto.o enclave/crypto.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/mpi_tls.o enclave/mpi_tls.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/synch.o enclave/synch.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/threading.o enclave/threading.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/window.o enclave/window.c
+cc -nostdinc -m64 -fPIE -ftls-model=local-exec -fvisibility=hidden -fstack-protector-strong -fno-omit-frame-pointer -ffunction-sections -fdata-sections -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty/libc -I/opt/openenclave/share/pkgconfig/../../include/openenclave/3rdparty -I/opt/openenclave/share/pkgconfig/../../include  -march=native -mno-avx512f -O3 -Wall -Wextra -Werror  -DOE_SIMULATION_CERT -I. -Ithird_party/liboblivious/include -MMD -c -o enclave/scalable_oblivious_join.o enclave/scalable_oblivious_join.c
+Created temporary directory for intermediate files: tmp_operator1
+Running oblivious Operator 1 (variant: default) on /home/azureuser/obliviator/data/op1_test_data.csv
+Created temp directory tmp_operator1
+Formatting input for Obliviator Operator 1...
+Formatted input written to tmp_operator1/op1_format.txt.
+Relabeling IDs for Operator 1 input...
+Relabeled input written to tmp_operator1/op1_relabel.txt, relabel map written to tmp_operator1/op1_map.txt.
+Running Obliviator Operator 1 (default variant)...
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: SET
+DEBUG (Internal): Searching for: '/*MT_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_MT/*MT_FILTER_END*/', Replacing with: '/*MT_FILTER_START*/-1/*MT_FILTER_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: SET
+DEBUG (Internal): Searching for: '/*ST_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_ST/*ST_FILTER_END*/', Replacing with: '/*ST_FILTER_START*/-1/*ST_FILTER_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: SET
+DEBUG (Internal): Searching for: '/*MT_COND_START*/FILTER_PLACEHOLDER_COND_OP1_MT/*MT_COND_END*/', Replacing with: '/*MT_COND_START*/default/*MT_COND_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: SET
+DEBUG (Internal): Searching for: '/*ST_COND_START*/FILTER_PLACEHOLDER_COND_OP1_ST/*ST_COND_END*/', Replacing with: '/*ST_COND_START*/default/*ST_COND_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+Building Obliviator Operator 1 (default)...
+
+FATAL ERROR during execution: Command '['make']' returned non-zero exit status 2.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: REVERT
+DEBUG (Internal): Searching for: '/*MT_FILTER_START*/-1/*MT_FILTER_END*/', Replacing with: '/*MT_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_MT/*MT_FILTER_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: REVERT
+DEBUG (Internal): Searching for: '/*ST_FILTER_START*/-1/*ST_FILTER_END*/', Replacing with: '/*ST_FILTER_START*/FILTER_PLACEHOLDER_VALUE_OP1_ST/*ST_FILTER_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: REVERT
+DEBUG (Internal): Searching for: '/*MT_COND_START*/default/*MT_COND_END*/', Replacing with: '/*MT_COND_START*/FILTER_PLACEHOLDER_COND_OP1_MT/*MT_COND_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+--- DEBUG (Internal): Attempting to modify filter in: /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c ---
+DEBUG (Internal): Operation: REVERT
+DEBUG (Internal): Searching for: '/*ST_COND_START*/default/*ST_COND_END*/', Replacing with: '/*ST_COND_START*/FILTER_PLACEHOLDER_COND_OP1_ST/*ST_COND_END*/'
+DEBUG (Internal): File /home/azureuser/obliviator/operator_1/enclave/scalable_oblivious_join.c successfully modified and synced.
+Source file modification complete.
+
+FATAL ERROR during execution: Command '['make']' returned non-zero exit status 2.
+
+Cleaning up temporary directory: tmp_operator1...
+Temporary directory cleaned up successfully.

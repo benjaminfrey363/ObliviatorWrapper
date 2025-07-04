@@ -2,9 +2,9 @@ import os
 import subprocess
 from pathlib import Path
 import argparse
-import shutil # Import shutil for directory removal
-import re # Import regex module for string replacement
-from typing import Optional # Import Optional for Python < 3.10 type hints
+import shutil
+import re
+from typing import Optional
 
 ###########################
 # OBLIVIATOR OPERATOR 1 WRAPPER #
@@ -16,21 +16,28 @@ OP1_FILTER_SOURCE_FILE_REL_PATH = Path("enclave/scalable_oblivious_join.c")
 # Unique placeholders for the filters (MUST be manually in C code now)
 OP1_PLACEHOLDER_MT = "FILTER_PLACEHOLDER_VALUE_OP1_MT" # Multi-threaded filter placeholder
 OP1_PLACEHOLDER_ST = "FILTER_PLACEHOLDER_VALUE_OP1_ST" # Single-threaded filter placeholder
+# condition placeholders - <, >, ==
+OP1_PLACEHOLDER_MT_COND = "FILTER_PLACEHOLDER_COND_OP1_MT"
+OP1_PLACEHOLDER_ST_COND = "FILTER_PLACEHOLDER_COND_OP1_ST"
 
 # Unique comment markers for precise replacement
 MT_COMMENT_START = "/*MT_FILTER_START*/"
 MT_COMMENT_END = "/*MT_FILTER_END*/"
 ST_COMMENT_START = "/*ST_FILTER_START*/"
 ST_COMMENT_END = "/*ST_FILTER_END*/"
+MT_COND_START = "/*MT_COND_START*/"
+MT_COND_END = "/*MT_COND_END*/"
+ST_COND_START = "/*ST_COND_START*/"
+ST_COND_END = "/*ST_COND_END*/"
 
 
-def _modify_filter_source( # Corrected function name
-    source_file_abs_path: Path, 
-    comment_start: str, # e.g., "/*MT_FILTER_START*/"
-    value_to_find_inside_comments: str, # The literal string to search for (placeholder or number)
-    comment_end: str, # e.g., "/*MT_FILTER_END*/"
-    value_to_replace_with: str, # The literal string to replace with (number or placeholder)
-    is_revert_operation: bool = False # Flag to indicate if this is a revert call
+def _modify_source_file(
+    source_file_abs_path: Path,
+    comment_start: str,
+    value_to_find_inside_comments: str,
+    comment_end: str,
+    value_to_replace_with: str,
+    is_revert_operation: bool = False
 ):
     """
     Modifies a C source file by replacing a specific value within unique inline comments.
@@ -39,35 +46,32 @@ def _modify_filter_source( # Corrected function name
     if not source_file_abs_path.exists():
         raise FileNotFoundError(f"Source file not found: {source_file_abs_path}. Cannot set filter.")
 
-    print(f"\n--- DEBUG (Internal): Attempting to modify filter in: {source_file_abs_path} ---")
+    print(f"\n--- DEBUG (Internal): Attempting to modify file: {source_file_abs_path} ---")
     print(f"DEBUG (Internal): Operation: {'REVERT' if is_revert_operation else 'SET'}")
-    print(f"DEBUG (Internal): Searching for: '{comment_start}{value_to_find_inside_comments}{comment_end}', Replacing with: '{comment_start}{value_to_replace_with}{comment_end}'")
+    print(f"DEBUG (Internal): Searching for content within: {comment_start}...{comment_end}")
+    print(f"DEBUG (Internal): Replacing '{value_to_find_inside_comments}' with '{value_to_replace_with}'")
 
     original_content = ""
-    with open(source_file_abs_path, 'r') as f_read: 
+    with open(source_file_abs_path, 'r') as f_read:
         original_content = f_read.read()
 
-    # Construct the full string to find (including comments)
     full_string_to_find = f"{comment_start}{value_to_find_inside_comments}{comment_end}"
     full_string_to_replace_with = f"{comment_start}{value_to_replace_with}{comment_end}"
 
-    # Perform direct literal string replacement
+    if full_string_to_find not in original_content:
+        print(f"ERROR (Internal): Search string '{full_string_to_find}' was NOT found in the file content.")
+        raise ValueError("Filter modification failed: Search string not found.")
+
     new_content = original_content.replace(full_string_to_find, full_string_to_replace_with)
-    
+
     if original_content == new_content:
-        # If no change, it's a critical error
         print(f"WARNING (Internal): String replacement failed. No change made to {source_file_abs_path}.")
-        if full_string_to_find not in original_content:
-            print(f"WARNING (Internal): Search string '{full_string_to_find}' was NOT found anywhere in the file content.")
-        else:
-            print(f"WARNING (Internal): Search string '{full_string_to_find}' was found, but no replacement occurred (perhaps already replaced?).")
-        raise ValueError("Filter modification failed: Search string not found or replacement failed.")
-        
+        raise ValueError("Filter modification failed: Replacement resulted in no change.")
+
     with open(source_file_abs_path, 'w') as f_write:
         f_write.write(new_content)
-        os.fsync(f_write.fileno()) 
+        os.fsync(f_write.fileno())
     print(f"DEBUG (Internal): File {source_file_abs_path} successfully modified and synced.")
-    print("Source file modification complete.")
 
 
 def _cleanup_temp_dir(temp_dir_path: Path):
@@ -89,28 +93,19 @@ def obliviator_operator1 (
     operator1_variant: str = "default",
     id_col: str = "",
     string_to_project_col: str = "",
-    filter_threshold_op1: Optional[int] = None
+    filter_threshold_op1: Optional[int] = None,
+    filter_condition_op1: str = "<"
 ):
     """
-    Runs Obliviator's "Operator 1" which performs a projection.
-
-    Args:
-        filepath (str): Path to the input data file (e.g., test.csv).
-        temp_dir (Path): The temporary directory for this run.
-        ultimate_final_output_path (Path): The path for the final output file.
-        operator1_variant (str): Specifies which Operator 1 implementation to use.
-        id_col (str): Column in filepath to use as the unique ID.
-        string_to_project_col (str): Column containing the string to be projected.
-        filter_threshold_op1 (int): Numerical threshold for the filter in Operator 1.
+    Runs Obliviator's "Operator 1" which performs a projection with an optional filter.
     """
     print(f"Running oblivious Operator 1 (variant: {operator1_variant}) on {filepath}")
 
+    # Create the temporary directory if it doesn't exist
+    temp_dir.mkdir(exist_ok=True)
     print("Created temp directory " + str(temp_dir))
 
-    #########################################
-    # 1. Format input for Obliviator Operator 1 #
-    #########################################
-
+    # --- Input formatting and relabeling ---
     print("Formatting input for Obliviator Operator 1...")
     format_path = temp_dir / "op1_format.txt"
     subprocess.run([
@@ -122,10 +117,6 @@ def obliviator_operator1 (
     ], check=True, cwd=Path(__file__).parent)
     print("Formatted input written to " + str(format_path) + ".")
 
-    ###################################################
-    # 2. Relabel IDs to reduce into Obliviators range #
-    ###################################################
-
     print("Relabeling IDs for Operator 1 input...")
     relabel_path = temp_dir / "op1_relabel.txt"
     mapping_path = temp_dir / "op1_map.txt"
@@ -134,13 +125,10 @@ def obliviator_operator1 (
         "--input_path", str(format_path),
         "--output_path", str(relabel_path),
         "--mapping_path", str(mapping_path),
-        "--key_index_to_relabel", "0" # Relabel the ID (first column of format.txt)
+        "--key_index_to_relabel", "0"
     ], check=True, cwd=Path(__file__).parent)
     print("Relabeled input written to " + str(relabel_path) + ", relabel map written to " + str(mapping_path) + ".")
 
-    ##############################
-    # 3. Run Obliviator Operator 1 #
-    ##############################
 
     print(f"Running Obliviator Operator 1 ({operator1_variant} variant)...")
 
@@ -152,112 +140,156 @@ def obliviator_operator1 (
     else:
         raise ValueError(f"Unknown operator1_variant: {operator1_variant}. Choose 'default' or 'opaque_shared_memory'.")
 
-    # --- Apply filter modification if a threshold is provided ---
     filter_modified_in_source = False
-    if filter_threshold_op1 is not None:
-        try:
+    condition_modified_in_source = False
+
+    try:
+        # --- Apply filter modification if a threshold is provided ---
+        if filter_threshold_op1 is not None:
+            print(f"\nApplying filter to source: key {filter_condition_op1} {filter_threshold_op1}")
             # Set MT filter
-            _modify_filter_source( # Corrected function name
+            _modify_source_file(
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                MT_COMMENT_START, OP1_PLACEHOLDER_MT, MT_COMMENT_END, # Search for MT placeholder string
-                str(filter_threshold_op1), # Replace with numerical value
-                False # is_revert_operation = False
+                MT_COMMENT_START, OP1_PLACEHOLDER_MT, MT_COMMENT_END,
+                str(filter_threshold_op1), False
             )
             # Set ST filter
-            _modify_filter_source( # Corrected function name
+            _modify_source_file(
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                ST_COMMENT_START, OP1_PLACEHOLDER_ST, ST_COMMENT_END, # Search for ST placeholder string
-                str(filter_threshold_op1), # Replace with numerical value
-                False # is_revert_operation = False
+                ST_COMMENT_START, OP1_PLACEHOLDER_ST, ST_COMMENT_END,
+                str(filter_threshold_op1), False
             )
             filter_modified_in_source = True
-        except Exception as e:
-            print(f"\nFATAL: Failed to correctly parameterize Operator 1 filter in C source code. "
-                  f"Please check the manual setup step in README.md and the source file: {code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH}")
-            print(f"Error details: {e}")
-            raise
-            
-    try:
-        print(f"Building Obliviator Operator 1 ({operator1_variant})...")
-        subprocess.run(["make", "clean"], cwd=code_dir, check=True)
+
+            # --- Validate filter condition before applying ---
+            valid_conditions = ['<', '>', '==', '<=', '>=', '!=']
+            if filter_condition_op1 not in valid_conditions:
+                raise ValueError(
+                    f"\n\n--- INVALID FILTER OPERATOR ---\n"
+                    f"Received: '{filter_condition_op1}'.\n"
+                    f"Valid operators are: {valid_conditions}.\n"
+                    f"HINT: If using '<' or '>', you MUST quote it in the shell command.\n"
+                    f"Example: --filter_condition_op1 \">\"\n"
+                )
+
+            # Set MT condition
+            _modify_source_file(
+                code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
+                MT_COND_START, OP1_PLACEHOLDER_MT_COND, MT_COND_END,
+                filter_condition_op1, False
+            )
+            # Set ST condition
+            _modify_source_file(
+                code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
+                ST_COND_START, OP1_PLACEHOLDER_ST_COND, ST_COND_END,
+                filter_condition_op1, False
+            )
+            condition_modified_in_source = True
+
+        print(f"\nBuilding Obliviator Operator 1 ({operator1_variant})...")
+        # Use capture_output to hide verbose make output unless there's an error
+        subprocess.run(["make", "clean"], cwd=code_dir, check=True, capture_output=True)
         subprocess.run(["make"], cwd=code_dir, check=True)
 
         absolute_path_to_input = (Path(__file__).parent / relabel_path).resolve()
+        print(f"Build completed. Executing Operator 1 with input: {absolute_path_to_input}")
 
-        print(f"Build completed. Executing Operator 1 with input: {absolute_path_to_input} (absolute path)")
-        print(f"obliviator executable will run from CWD: {code_dir}")
-
-        subprocess.run(
-            ["./host/parallel", "./enclave/parallel_enc.signed", "1", str(absolute_path_to_input)],
-            cwd=code_dir
+        # --- EXECUTION WITH MODIFIED ERROR CHECKING ---
+        execution_command = ["./host/parallel", "./enclave/parallel_enc.signed", "1", str(absolute_path_to_input)]
+        completed_process = subprocess.run(
+            execution_command,
+            cwd=code_dir,
+            capture_output=True, # Capture stdout/stderr
+            text=True # Decode stdout/stderr as text
         )
+
+        # The C program exits with 1 on success, so we check for other non-zero codes.
+        if completed_process.returncode != 0 and completed_process.returncode != 1:
+            print("\n--- FATAL ERROR: Obliviator Execution Failed ---")
+            print(f"Command '{' '.join(execution_command)}' returned an unexpected error code: {completed_process.returncode}.")
+            if completed_process.stdout:
+                print("--- STDOUT ---")
+                print(completed_process.stdout)
+            if completed_process.stderr:
+                print("--- STDERR ---")
+                print(completed_process.stderr)
+            print("-------------------------------------------------")
+            # Raise an error to stop the script
+            raise subprocess.CalledProcessError(completed_process.returncode, execution_command)
+
         print("Exited Obliviator Operator 1 successfully.")
 
-        # Find and Copy Obliviator's Raw Output
+        # --- Output processing and reverse relabeling ---
         obliviator_raw_output_filename = Path(absolute_path_to_input).stem + "_output.txt"
         obliviator_raw_output_path_absolute = temp_dir / obliviator_raw_output_filename
 
-        print(f"DEBUG: Expected raw Obliviator output filename: {obliviator_raw_output_filename}")
-        print(f"DEBUG: Python will look for Obliviator output at: {obliviator_raw_output_path_absolute}")
-
         if not obliviator_raw_output_path_absolute.exists():
-            print(f"DEBUG: Contents of {temp_dir}: {[item.name for item in temp_dir.iterdir()]}")
             raise FileNotFoundError(f"Obliviator output file not found: {obliviator_raw_output_path_absolute}")
 
-        # The output from obliviator_1 is `ID projected_string_part`
-        # We need to reverse relabel the ID part (column 0).
         subprocess.run([
             "python", "obliviator_formatting/reverse_relabel_ids.py",
             "--input_path", str(obliviator_raw_output_path_absolute),
-            "--output_path", str(ultimate_final_output_path), # Write directly to final location
-            "--mapping_path", str(mapping_path), # Use the map generated for op1_relabel.txt
-            "--key_index_to_relabel", "0" # Relabel the ID (first column of obliviator output)
+            "--output_path", str(ultimate_final_output_path),
+            "--mapping_path", str(mapping_path),
+            "--key_index_to_relabel", "0"
         ], check=True, cwd=Path(__file__).parent)
-        print("Reverse-relabeled Operator 1 output written to " + str(ultimate_final_output_path) + ".\n\n")
-        print(f"✅ Output of Obliviator Operator 1 written to: {ultimate_final_output_path}\n\n")
+        print(f"✅ Output of Obliviator Operator 1 written to: {ultimate_final_output_path}\n")
 
+    except subprocess.CalledProcessError as e:
+        # This block will now primarily catch errors from 'make'
+        print("\n--- FATAL ERROR: Build Failed ---")
+        print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
+        # Make prints errors to stderr
+        if e.stderr:
+            print("--- STDERR ---")
+            print(e.stderr.decode())
+        print("---------------------------------")
+        raise
     except Exception as e:
-        print(f"\nFATAL ERROR during execution: {e}")
+        print(f"\nFATAL ERROR during script execution: {e}")
         raise
     finally:
-        # --- Revert filter modification after execution ---
+        # --- Revert modifications after execution ---
         if filter_modified_in_source:
-            # Revert MT filter
-            _modify_filter_source( # Corrected function name
+            _modify_source_file(
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                MT_COMMENT_START, str(filter_threshold_op1), MT_COMMENT_END, # Search for numerical value with comments
-                OP1_PLACEHOLDER_MT, # Replace with the placeholder string
-                True # is_revert_operation = True
+                MT_COMMENT_START, str(filter_threshold_op1), MT_COMMENT_END,
+                OP1_PLACEHOLDER_MT, True
             )
-            # Revert ST filter
-            _modify_filter_source( # Corrected function name
+            _modify_source_file(
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
-                ST_COMMENT_START, str(filter_threshold_op1), ST_COMMENT_END, # Search for numerical value with comments
-                OP1_PLACEHOLDER_ST, # Replace with the placeholder string
-                True # is_revert_operation = True
+                ST_COMMENT_START, str(filter_threshold_op1), ST_COMMENT_END,
+                OP1_PLACEHOLDER_ST, True
+            )
+        if condition_modified_in_source:
+            _modify_source_file(
+                code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
+                MT_COND_START, filter_condition_op1, MT_COND_END,
+                OP1_PLACEHOLDER_MT_COND, True
+            )
+            _modify_source_file(
+                code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
+                ST_COND_START, filter_condition_op1, ST_COND_END,
+                OP1_PLACEHOLDER_ST_COND, True
             )
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Wrapper for Obliviator's Operator 1 (Projection).")
     parser.add_argument("--filepath", required=True)
     parser.add_argument("--id_col", required=True, help="Column to use as the unique ID.")
     parser.add_argument("--string_to_project_col", required=True, help="Column containing the string to be projected.")
-    parser.add_argument("--filter_threshold_op1", type=int, default=None,
-                        help="Numerical threshold for the filter in Operator 1 (e.g., 88).")
-    parser.add_argument("--operator1_variant", choices=["default", "opaque_shared_memory"], default="default",
-                        help="Specify the Operator 1 variant.")
-    parser.add_argument("--no_cleanup", action="store_true",
-                        help="Do not clean up temporary directories after execution. Useful for debugging.")
+    parser.add_argument("--filter_threshold_op1", type=int, help="Numerical threshold for the filter. If not provided, no filter is applied.")
+    parser.add_argument("--filter_condition_op1", type=str, default="<", help="Operator for the filter (e.g., '>', '<', '=='). Remember to quote operators like '>' or '<'.")
+    parser.add_argument("--operator1_variant", choices=["default", "opaque_shared_memory"], default="default", help="Specify the Operator 1 variant.")
+    parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories after execution.")
     args = parser.parse_args()
 
     temp_dir_name = "tmp_operator1"
     temp_dir = Path(temp_dir_name)
-    temp_dir.mkdir(exist_ok=True)
-    print("Created temporary directory for intermediate files: " + str(temp_dir))
-
+    
     final_output_filename = "op1_output.txt"
-    ultimate_final_output_path = Path(os.getcwd()) / final_output_filename
+    ultimate_final_output_path = Path.cwd() / final_output_filename
 
     try:
         obliviator_operator1(
@@ -267,11 +299,12 @@ def main():
             args.operator1_variant,
             args.id_col,
             args.string_to_project_col,
-            args.filter_threshold_op1
+            args.filter_threshold_op1,
+            args.filter_condition_op1
         )
-    except Exception as e:
-        print(f"\nFATAL ERROR during execution: {e}")
-        raise
+    except Exception:
+        # The specific error is already printed in the obliviator_operator1 function
+        print("\nExecution aborted due to an error.")
     finally:
         if not args.no_cleanup:
             _cleanup_temp_dir(temp_dir)
@@ -281,4 +314,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
