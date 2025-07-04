@@ -1,10 +1,1 @@
-USER001 alph
-USER002 beta
-USER003 gamm
-USER004 delt
-USER005 epsi
-USER006 zeta
-USER007 eta_
-USER008 thet
-USER009 iota
-USER010 kapp
+5 epsilon_test_string_5

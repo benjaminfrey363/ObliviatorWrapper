@@ -105,8 +105,8 @@ def obliviator_operator1 (
     temp_dir.mkdir(exist_ok=True)
     print("Created temp directory " + str(temp_dir))
 
-    # --- Input formatting and relabeling ---
-    print("Formatting input for Obliviator Operator 1...")
+    # --- Step 1: Initial formatting from CSV to "ID VALUE" format ---
+    print("\nStep 1: Formatting input for Obliviator...")
     format_path = temp_dir / "op1_format.txt"
     subprocess.run([
         "python", "obliviator_formatting/format_operator1.py",
@@ -115,22 +115,22 @@ def obliviator_operator1 (
         "--id_col", id_col,
         "--string_to_project_col", string_to_project_col
     ], check=True, cwd=Path(__file__).parent)
-    print("Formatted input written to " + str(format_path) + ".")
+    print("Initial formatting complete.")
 
-    print("Relabeling IDs for Operator 1 input...")
-    relabel_path = temp_dir / "op1_relabel.txt"
-    mapping_path = temp_dir / "op1_map.txt"
+    # --- Step 2: Relabel data specifically for Operator 1's needs ---
+    print("\nStep 2: Relabeling data for Operator 1...")
+    relabel_path = temp_dir / "op1_relabel_for_c.txt" # More descriptive name
+    mapping_path = temp_dir / "op1_value_map.txt"
     subprocess.run([
-        "python", "obliviator_formatting/relabel_ids.py",
+        "python", "obliviator_formatting/relabel_op1.py", # Use the new script
         "--input_path", str(format_path),
         "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path),
-        "--key_index_to_relabel", "0"
+        "--mapping_path", str(mapping_path)
     ], check=True, cwd=Path(__file__).parent)
-    print("Relabeled input written to " + str(relabel_path) + ", relabel map written to " + str(mapping_path) + ".")
+    print("Operator 1 relabeling complete. Input for C program is ready.")
 
 
-    print(f"Running Obliviator Operator 1 ({operator1_variant} variant)...")
+    print(f"\nStep 3: Running Obliviator C program ({operator1_variant} variant)...")
 
     code_dir = None
     if operator1_variant == "default":
@@ -146,7 +146,7 @@ def obliviator_operator1 (
     try:
         # --- Apply filter modification if a threshold is provided ---
         if filter_threshold_op1 is not None:
-            print(f"\nApplying filter to source: key {filter_condition_op1} {filter_threshold_op1}")
+            print(f"Applying filter to source: key {filter_condition_op1} {filter_threshold_op1}")
             # Set MT filter
             _modify_source_file(
                 code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH,
@@ -187,39 +187,31 @@ def obliviator_operator1 (
             condition_modified_in_source = True
 
         print(f"\nBuilding Obliviator Operator 1 ({operator1_variant})...")
-        # Use capture_output to hide verbose make output unless there's an error
         subprocess.run(["make", "clean"], cwd=code_dir, check=True, capture_output=True)
         subprocess.run(["make"], cwd=code_dir, check=True)
 
         absolute_path_to_input = (Path(__file__).parent / relabel_path).resolve()
         print(f"Build completed. Executing Operator 1 with input: {absolute_path_to_input}")
 
-        # --- EXECUTION WITH MODIFIED ERROR CHECKING ---
         execution_command = ["./host/parallel", "./enclave/parallel_enc.signed", "1", str(absolute_path_to_input)]
         completed_process = subprocess.run(
             execution_command,
             cwd=code_dir,
-            capture_output=True, # Capture stdout/stderr
-            text=True # Decode stdout/stderr as text
+            capture_output=True,
+            text=True
         )
 
-        # The C program exits with 1 on success, so we check for other non-zero codes.
         if completed_process.returncode != 0 and completed_process.returncode != 1:
             print("\n--- FATAL ERROR: Obliviator Execution Failed ---")
             print(f"Command '{' '.join(execution_command)}' returned an unexpected error code: {completed_process.returncode}.")
-            if completed_process.stdout:
-                print("--- STDOUT ---")
-                print(completed_process.stdout)
-            if completed_process.stderr:
-                print("--- STDERR ---")
-                print(completed_process.stderr)
-            print("-------------------------------------------------")
-            # Raise an error to stop the script
+            if completed_process.stdout: print("--- STDOUT ---\n" + completed_process.stdout)
+            if completed_process.stderr: print("--- STDERR ---\n" + completed_process.stderr)
             raise subprocess.CalledProcessError(completed_process.returncode, execution_command)
 
         print("Exited Obliviator Operator 1 successfully.")
 
-        # --- Output processing and reverse relabeling ---
+        # --- Step 4: Reverse the relabeling to get final output ---
+        print("\nStep 4: Reversing relabeling for final output...")
         obliviator_raw_output_filename = Path(absolute_path_to_input).stem + "_output.txt"
         obliviator_raw_output_path_absolute = temp_dir / obliviator_raw_output_filename
 
@@ -227,23 +219,18 @@ def obliviator_operator1 (
             raise FileNotFoundError(f"Obliviator output file not found: {obliviator_raw_output_path_absolute}")
 
         subprocess.run([
-            "python", "obliviator_formatting/reverse_relabel_ids.py",
+            "python", "obliviator_formatting/reverse_relabel_op1.py", # Use the new script
             "--input_path", str(obliviator_raw_output_path_absolute),
             "--output_path", str(ultimate_final_output_path),
-            "--mapping_path", str(mapping_path),
-            "--key_index_to_relabel", "0"
+            "--mapping_path", str(mapping_path)
         ], check=True, cwd=Path(__file__).parent)
         print(f"✅ Output of Obliviator Operator 1 written to: {ultimate_final_output_path}\n")
 
     except subprocess.CalledProcessError as e:
-        # This block will now primarily catch errors from 'make'
-        print("\n--- FATAL ERROR: Build Failed ---")
+        print("\n--- FATAL ERROR: Build or Execution Failed ---")
         print(f"Command '{e.cmd}' returned non-zero exit status {e.returncode}.")
-        # Make prints errors to stderr
-        if e.stderr:
-            print("--- STDERR ---")
-            print(e.stderr.decode())
-        print("---------------------------------")
+        if e.stdout: print("--- STDOUT ---\n" + e.stdout.decode())
+        if e.stderr: print("--- STDERR ---\n" + e.stderr.decode())
         raise
     except Exception as e:
         print(f"\nFATAL ERROR during script execution: {e}")
@@ -303,7 +290,6 @@ def main():
             args.filter_condition_op1
         )
     except Exception:
-        # The specific error is already printed in the obliviator_operator1 function
         print("\nExecution aborted due to an error.")
     finally:
         if not args.no_cleanup:

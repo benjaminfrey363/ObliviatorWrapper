@@ -1,0 +1,11 @@
+10 0
+0 alpha_test_string_1
+2 beta_test_string_2
+4 gamma_test_string_3
+6 delta_test_string_4
+8 epsilon_test_string_5
+10 zeta_test_string_6
+12 eta_test_string_7
+14 theta_test_string_8
+16 iota_test_string_9
+18 kappa_test_string_10
