@@ -1,53 +1,86 @@
-# obliviator_formatting/format_operator1.py (Pad String to 27 Bytes)
+# obliviator_formatting/format_operator1.py
 
 import argparse
-import pandas as pd
+import csv
+from pathlib import Path
+from typing import List
 
-# elem_t.data size from operator_1/common/elem_t.h
-EXPECTED_DATA_FIELD_LENGTH = 27 
-# The string length that obliviator_1 projects as output (e.g., 'nbiz' is 4 chars)
-PROJECTED_OUTPUT_STRING_LENGTH = 4 
-
-def format_operator1(filepath: str, output_path: str, id_col: str, string_to_project_col: str):
+def format_for_operator1(
+    filepath: str,
+    output_path: str,
+    filter_col: str,
+    payload_cols: List[str]
+):
     """
-    Formats a generic CSV input file for Obliviator's 'operator_1'.
-    It prepares the data to fit elem_t struct: <ID> <padded_string_value>.
-    The string_to_project_col value will be padded/truncated to EXPECTED_DATA_FIELD_LENGTH (27 bytes).
+    Reads a CSV file and formats it for Obliviator Operator 1.
+
+    - Extracts a single column to be used for filtering.
+    - Extracts one or more payload columns and joins them into a single,
+      comma-separated string. This becomes the 'value' for the operator.
+    - Writes the output in the format: filter_col_value payload_string
+
+    Args:
+        filepath (str): Path to the input CSV file.
+        output_path (str): Path for the formatted output file.
+        filter_col (str): The name of the column to use for filtering.
+        payload_cols (list[str]): A list of column names to be concatenated
+                                  into the payload.
     """
-    df = pd.read_csv(filepath)
+    print("--- Formatting CSV for Operator 1 ---")
+    print(f"Filter column: {filter_col}")
+    print(f"Payload columns: {payload_cols}")
 
-    if id_col not in df.columns:
-        raise ValueError(f"ID column '{id_col}' not found in input CSV.")
-    if string_to_project_col not in df.columns:
-        raise ValueError(f"String to project column '{string_to_project_col}' not found in input CSV.")
+    rows = []
+    try:
+        with open(filepath, mode='r', newline='', encoding='utf-8') as infile:
+            reader = csv.DictReader(infile)
+            
+            # Verify that all specified columns exist in the CSV header
+            header = reader.fieldnames
+            if not header:
+                raise ValueError("CSV file is empty or has no header.")
+            
+            required_cols = {filter_col, *payload_cols}
+            missing_cols = required_cols - set(header)
+            if missing_cols:
+                raise ValueError(f"Missing required columns in CSV file: {', '.join(missing_cols)}")
 
-    lines_to_process = []
-    for index, row in df.iterrows():
-        original_id = str(row[id_col])
-        raw_string_data = str(row[string_to_project_col])
-        
-        # Pad or truncate the string to the exact expected length (27 bytes)
-        # Fill with spaces or null characters if shorter, truncate if longer.
-        # It's safer to pad with spaces and ensure ASCII.
-        padded_string_data = (raw_string_data + ' ' * EXPECTED_DATA_FIELD_LENGTH)[:EXPECTED_DATA_FIELD_LENGTH]
-        
-        lines_to_process.append(f"{original_id} {padded_string_data}")
+            for row in reader:
+                filter_value = row[filter_col]
+                
+                # Create the comma-separated payload string
+                payload_values = [row[col] for col in payload_cols]
+                payload_string = ",".join(payload_values)
+                
+                rows.append(f"{filter_value} {payload_string}\n")
 
-    header_output = f"{len(lines_to_process)} {0}"
-    
+    except FileNotFoundError:
+        print(f"Error: Input file not found at {filepath}")
+        raise
+    except Exception as e:
+        print(f"An error occurred during CSV processing: {e}")
+        raise
+
+    # Write the formatted output file
     with open(output_path, "w") as outfile:
-        outfile.write("\n".join([header_output] + lines_to_process))
-    print(f"Formatted input for Operator 1 written to {output_path}.")
+        # The C program expects a header line with the number of data rows
+        # and a second number (which is 0 for this operator).
+        outfile.write(f"{len(rows)} 0\n")
+        outfile.writelines(rows)
+
+    print(f"Formatting complete. {len(rows)} rows written to {output_path}.")
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--filepath", required=True, help="Path to the input CSV file.")
-    parser.add_argument("--output_path", required=True, help="Path to the output formatted file.")
-    parser.add_argument("--id_col", required=True, help="Column to use as the unique ID.")
-    parser.add_argument("--string_to_project_col", required=True, help="Column containing the string to be projected.")
+    parser = argparse.ArgumentParser(description="Formats a CSV file for Obliviator Operator 1.")
+    parser.add_argument("--filepath", required=True)
+    parser.add_argument("--output_path", required=True)
+    parser.add_argument("--filter_col", required=True, help="The column to be used for filtering.")
+    parser.add_argument("--payload_cols", nargs='+', required=True, help="One or more columns to include in the payload.")
     args = parser.parse_args()
-    format_operator1(args.filepath, args.output_path, args.id_col, args.string_to_project_col)
+    
+    format_for_operator1(args.filepath, args.output_path, args.filter_col, args.payload_cols)
+
 
 if __name__ == "__main__":
     main()
