@@ -1,0 +1,9 @@
+employee_id,employee_name,department,project_name,hours_worked
+E101,Alice,Engineering,Bluebird,40
+E102,Bob,Sales,Albatross,35
+E103,Charlie,Engineering,Canary,25
+E104,Diana,HR,RecruitFest,40
+E105,Eve,Sales,Albatross,45
+E106,Frank,Engineering,Bluebird,30
+E107,Grace,HR,Onboarding,20
+E108,Heidi,Sales,Condor,40
