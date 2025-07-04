@@ -1,0 +1,5 @@
+C101|ORD201,Compass,1932-05-20|Amelia,Earhart,Atchison
+C102|ORD204,Moon Dust,1969-07-20|Neil,Armstrong,Wapakoneta
+C102|ORD202,Spacesuit,1969-07-16|Neil,Armstrong,Wapakoneta
+C103|ORD203,Robotic Arm,1983-06-18|Sally,Ride,Los Angeles
+C105|ORD205,Friendship 7,1962-02-20|John,Glenn,Cambridge

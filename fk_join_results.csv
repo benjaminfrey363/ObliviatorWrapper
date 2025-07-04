@@ -1,0 +1,6 @@
+customer_id,first_name,last_name,city,order_id,product_name,order_date
+C101,Amelia,Earhart,Atchison,ORD201,Compass,1932-05-20
+C102,Neil,Armstrong,Wapakoneta,ORD204,Moon Dust,1969-07-20
+C102,Neil,Armstrong,Wapakoneta,ORD202,Spacesuit,1969-07-16
+C103,Sally,Ride,Los Angeles,ORD203,Robotic Arm,1983-06-18
+C105,John,Glenn,Cambridge,ORD205,Friendship 7,1962-02-20

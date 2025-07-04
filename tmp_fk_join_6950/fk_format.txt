@@ -1,0 +1,11 @@
+10 0
+C101 Amelia,Earhart,Atchison 0
+C102 Neil,Armstrong,Wapakoneta 0
+C103 Sally,Ride,Los Angeles 0
+C104 Buzz,Aldrin,Montclair 0
+C105 John,Glenn,Cambridge 0
+C101 ORD201,Compass,1932-05-20 1
+C102 ORD202,Spacesuit,1969-07-16 1
+C103 ORD203,Robotic Arm,1983-06-18 1
+C102 ORD204,Moon Dust,1969-07-20 1
+C105 ORD205,Friendship 7,1962-02-20 1

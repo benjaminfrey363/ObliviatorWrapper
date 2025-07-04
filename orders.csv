@@ -1,0 +1,6 @@
+order_id,customer_id,product_name,order_date
+ORD201,C101,Compass,1932-05-20
+ORD202,C102,Spacesuit,1969-07-16
+ORD203,C103,Robotic Arm,1983-06-18
+ORD204,C102,Moon Dust,1969-07-20
+ORD205,C105,Friendship 7,1962-02-20
