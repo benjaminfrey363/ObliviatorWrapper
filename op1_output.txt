@@ -1,1 +1,0 @@
-5 epsilon_test_string_5

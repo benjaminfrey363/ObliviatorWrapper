@@ -1,4 +1,0 @@
-R1 0.123 0.12 1.1.1.1,alpha_string,20
-R2 0.456 0.46 2.2.2.2,beta_string,202
-R3 0.789 0.79 3.3.3.3,gamma_string,20
-R4 0.999 1.00 4.4.4.4,delta_string,20

@@ -1,9 +1,17 @@
 import os
-import subprocess
 from pathlib import Path
 import argparse
 import shutil
 import csv
+
+# Import the core logic functions from our operator wrappers
+from operator1 import obliviator_operator1
+from fkjoin import obliviator_fk_join
+from operator2 import obliviator_aggregate
+
+# Import the formatting helpers
+from obliviator_formatting.format_sr2 import format_for_sr2
+from obliviator_formatting.format_for_oblivious_sort import format_for_sort
 
 def _cleanup_temp_dir(temp_dir_path: Path):
     if temp_dir_path.exists() and temp_dir_path.is_dir():
@@ -12,19 +20,17 @@ def _cleanup_temp_dir(temp_dir_path: Path):
 
 def run_ldbc_sr2(
     person_id: int,
-    person_file: str,
-    post_file: str,
-    comment_file: str,
-    output_path: str,
+    person_file: Path,
+    post_file: Path,
+    comment_file: Path,
+    output_path: Path,
     no_cleanup: bool
 ):
     """
-    Executes LDBC Short Read 2 with a fully oblivious pipeline,
-    including an oblivious sort via the aggregation operator.
+    Executes LDBC Short Read 2 with a fully oblivious pipeline.
     """
     print(f"--- Running LDBC Short Read 2 for Person ID: {person_id} ---")
     
-    # Use absolute paths for all temporary files to avoid subprocess issues
     temp_dir = Path(f"tmp_ldbc_sr2_{os.getpid()}").resolve()
     temp_dir.mkdir(exist_ok=True)
     print(f"Created temporary directory: {temp_dir}")
@@ -33,130 +39,46 @@ def run_ldbc_sr2(
         # --- Step 1: Unify Posts and Comments ---
         print("\nStep 1: Unifying message data...")
         unified_messages_path = temp_dir / "unified_messages.csv"
-        format_cmd = [
-            "python", "obliviator_formatting/format_sr2.py",
-            "--post_file", post_file,
-            "--comment_file", comment_file,
-            "--output_path", str(unified_messages_path)
-        ]
-        subprocess.run(format_cmd, check=True, cwd=Path(__file__).parent)
-        print("Message unification complete.")
+        format_for_sr2(str(post_file), str(comment_file), str(unified_messages_path))
 
-        # --- Step 2: Join with Posts to get original poster's ID ---
-        print("\nStep 2: Joining with original posts...")
-        join1_output_path = temp_dir / "join1_output.csv"
-        join1_cmd = [
-            "python", "fkjoin.py",
-            "--table1_path", post_file,
-            "--key1", "id",
-            "--payload1_cols", "hasCreator",
-            "--table2_path", str(unified_messages_path),
-            "--key2", "originalPostId",
-            "--payload2_cols", "messageId", "messageCreationDate", "messageContent", "messageCreatorId",
-            "--output_path", str(join1_output_path)
-        ]
-        subprocess.run(join1_cmd, check=True, cwd=Path(__file__).parent)
-        print("Join with posts complete.")
+        # --- Step 2 & 3: Perform Joins ---
+        print("\nStep 2: Joining messages with posts and persons...")
+        join1_path = temp_dir / "join1_output.csv"
+        obliviator_fk_join(str(post_file), "id", ["CreatorPersonId"], str(unified_messages_path), "originalPostId", ["messageId", "messageCreationDate", "messageContent", "messageCreatorId"], temp_dir / "t1", join1_path, "default")
+        
+        join2_path = temp_dir / "join2_output.csv"
+        obliviator_fk_join(str(person_file), "id", ["firstName", "lastName"], str(join1_path), "CreatorPersonId", ["originalPostId", "messageId", "messageCreationDate", "messageContent", "messageCreatorId"], temp_dir / "t2", join2_path, "default")
 
-        # --- Step 3: Join with Person to get original poster's name ---
-        print("\nStep 3: Joining with Person table...")
-        join2_output_path = temp_dir / "join2_output.csv"
-        person_join_cmd = [
-            "python", "fkjoin.py",
-            "--table1_path", person_file,
-            "--key1", "id",
-            "--payload1_cols", "firstName", "lastName",
-            "--table2_path", str(join1_output_path),
-            "--key2", "hasCreator",
-            "--payload2_cols", "originalPostId", "messageId", "messageCreationDate", "messageContent", "messageCreatorId",
-            "--output_path", str(join2_output_path)
-        ]
-        subprocess.run(person_join_cmd, check=True, cwd=Path(__file__).parent)
-        print("Join with Person table complete.")
-
-        # --- Step 4: Filter for messages by the target person ---
+        # --- Step 4: Filter for target person's messages ---
         print("\nStep 4: Filtering for target person's messages...")
         filtered_path = temp_dir / "filtered_messages.csv"
+        obliviator_operator1(str(join2_path), temp_dir / "t3", filtered_path, "default", "messageCreatorId", ['id', 'firstName', 'lastName', 'originalPostId', 'messageId', 'messageCreationDate', 'messageContent'], person_id, "==")
         
-        # We need to rename the ambiguous 'hasCreator' column before filtering
-        temp_filter_input_path = temp_dir / "filter_input.csv"
-        with open(join2_output_path, 'r', encoding='utf-8') as infile, \
-             open(temp_filter_input_path, 'w', newline='', encoding='utf-8') as outfile:
-            reader = csv.reader(infile)
-            writer = csv.writer(outfile)
-            header = next(reader)
-            header[-1] = 'messageCreatorId' 
-            writer.writerow(header)
-            writer.writerows(reader)
-            
-        filter_payload_cols = [col for col in header if col != 'messageCreatorId']
-        
-        filter_cmd = [
-            "python", "operator1.py",
-            "--filepath", str(temp_filter_input_path),
-            "--output_path", str(filtered_path),
-            "--filter_col", "messageCreatorId",
-            "--payload_cols", *filter_payload_cols,
-            "--filter_threshold_op1", str(person_id),
-            "--filter_condition_op1", "=="
-        ]
-        subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
-        print("Filtering complete.")
-
-        # --- Step 5: Prepare the filtered data for oblivious sorting ---
-        print("\nStep 5: Preparing data for oblivious sort...")
+        # --- Step 5: Oblivious Sort via Aggregation ---
+        print("\nStep 5: Performing oblivious sort...")
         sort_input_path = temp_dir / "sort_input.csv"
-        subprocess.run(["python", "obliviator_formatting/format_for_oblivious_sort.py", "--input_path", str(filtered_path), "--output_path", str(sort_input_path)], check=True)
-        print("Data prepared for sorting.")
+        format_for_sort(str(filtered_path), str(sort_input_path))
+        
+        sorted_agg_output = temp_dir / "sorted_agg_output.csv"
+        obliviator_aggregate(str(sort_input_path), sorted_agg_output, "sort_key", "dummy_agg_value", ["payload"], temp_dir / "t4", "default")
 
-        # --- Step 6: Perform Oblivious Sort using the Aggregation Operator ---
-        print("\nStep 6: Performing oblivious sort via aggregation...")
-        sorted_data_path = temp_dir / "sorted_data.csv"
-        agg_cmd = [
-            "python", "operator2.py",
-            "--filepath", str(sort_input_path),
-            "--output_path", str(sorted_data_path),
-            "--group_by_col", "sort_key",
-            "--agg_col", "dummy_agg_value",
-            "--payload_cols", "payload"
-        ]
-        subprocess.run(agg_cmd, check=True)
-        print("Oblivious sort complete.")
-
-        # --- Step 7: Final Processing and Limit ---
-        print("\nStep 7: Finalizing output...")
+        # --- Step 6: Final Processing and Limit ---
+        print("\nStep 6: Finalizing output...")
         final_rows = []
-        with open(sorted_data_path, 'r', encoding='utf-8-sig') as infile:
+        with open(sorted_agg_output, 'r', encoding='utf-8-sig') as infile:
             reader = csv.DictReader(infile)
+            original_header = ['id', 'firstName', 'lastName', 'originalPostId', 'messageId', 'messageCreationDate', 'messageContent', 'messageCreatorId']
             for row in reader:
-                # The payload is in the 'payload' column from the agg output
                 payload_str = row['payload']
-                # The original header had 'sort_key', 'dummy_agg_value', 'payload'
-                # We need to reconstruct the original dictionary from the payload string
-                original_header = ['messageCreatorId', 'id', 'firstName', 'lastName', 'originalPostId', 'messageId', 'messageCreationDate', 'messageContent']
                 original_values = payload_str.split(',')
                 original_row = dict(zip(original_header, original_values))
                 final_rows.append(original_row)
-
-        # The data is already sorted, so we just take the top 10
+        
         top_10_rows = final_rows[:10]
-
-        final_data_to_write = []
-        for row in top_10_rows:
-            final_data_to_write.append({
-                'messageId': row['messageId'],
-                'messageContent': row['messageContent'],
-                'messageCreationDate': row['messageCreationDate'],
-                'originalPostId': row['originalPostId'],
-                'originalPosterId': row['id'],
-                'originalPosterFirstName': row['firstName'],
-                'originalPosterLastName': row['lastName']
-            })
-
-        final_header = [
-            'messageId', 'messageContent', 'messageCreationDate', 
-            'originalPostId', 'originalPosterId', 'originalPosterFirstName', 'originalPosterLastName'
-        ]
+        
+        final_data_to_write = [{'messageId': r['messageId'], 'messageContent': r['messageContent'], 'messageCreationDate': r['messageCreationDate'], 'originalPostId': r['originalPostId'], 'originalPosterId': r['id'], 'originalPosterFirstName': r['firstName'], 'originalPosterLastName': r['lastName']} for r in top_10_rows]
+        
+        final_header = ['messageId', 'messageContent', 'messageCreationDate', 'originalPostId', 'originalPosterId', 'originalPosterFirstName', 'originalPosterLastName']
         with open(output_path, 'w', newline='', encoding='utf-8') as outfile:
             writer = csv.DictWriter(outfile, fieldnames=final_header)
             writer.writeheader()
@@ -164,9 +86,6 @@ def run_ldbc_sr2(
 
         print(f"\n✅ LDBC Short Read 2 complete. Final output at: {output_path}")
 
-    except Exception as e:
-        print(f"\n--- FATAL ERROR during LDBC SR2 execution: {e} ---")
-        raise
     finally:
         if not no_cleanup:
             _cleanup_temp_dir(temp_dir)
@@ -177,17 +96,17 @@ def main():
     parser.add_argument("--person_file", default="LDBC/data/Person.csv")
     parser.add_argument("--post_file", default="LDBC/data/Post.csv")
     parser.add_argument("--comment_file", default="LDBC/data/Comment.csv")
-    parser.add_argument("--output_path", default="LDBC/data/sr2_output.csv")
+    parser.add_argument("--output_path", default="sr2_output.csv")
     parser.add_argument("--no_cleanup", action="store_true")
     args = parser.parse_args()
 
-    # Ensure all input file paths are absolute before passing them
+    # Use absolute paths for all file inputs to ensure robustness
     run_ldbc_sr2(
         args.person_id,
-        os.path.abspath(os.path.expanduser(args.person_file)),
-        os.path.abspath(os.path.expanduser(args.post_file)),
-        os.path.abspath(os.path.expanduser(args.comment_file)),
-        os.path.abspath(os.path.expanduser(args.output_path)),
+        Path(args.person_file).resolve(),
+        Path(args.post_file).resolve(),
+        Path(args.comment_file).resolve(),
+        Path(args.output_path).resolve(),
         args.no_cleanup
     )
 

@@ -1,3 +1,0 @@
-response_time_ms,endpoint,status_code,ip_address
-200,/api/v1/search,200,198.51.100.22
-200,/api/v1/logout,200,192.168.1.10
