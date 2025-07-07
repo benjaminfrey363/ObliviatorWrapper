@@ -149,9 +149,9 @@ def run_ldbc_sr1_join_first(
 def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 1.")
     parser.add_argument("--person_id", type=int, required=True, help="The ID of the person to look up.")
-    parser.add_argument("--person_file", default="LDBC/data/short1/person.csv", help="Path to the person data CSV file.")
-    parser.add_argument("--city_file", default="LDBC/data/short1/city.csv", help="Path to the city data CSV file.")
-    parser.add_argument("--output_path", default="LDBC/data/output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--person_file", default="LDBC/data/Person.csv", help="Path to the person data CSV file.")
+    parser.add_argument("--city_file", default="LDBC/data/City.csv", help="Path to the city data CSV file.")
+    parser.add_argument("--output_path", default="LDBC/data/sr1_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
