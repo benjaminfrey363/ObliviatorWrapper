@@ -1,0 +1,5 @@
+region,representative_value,global_aggregate,product_category,units_sold
+North,75,5340.00,Groceries,10
+South,55,5340.00,Books,2
+West,65,5340.00,Books,2
+East,310,5340.00,Apparel,11

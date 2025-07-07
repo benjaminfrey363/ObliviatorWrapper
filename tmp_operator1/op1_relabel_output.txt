@@ -1,7 +1,0 @@
-6 delt
-8 epsi
-10 zeta
-12 eta_
-14 thet
-16 iota
-18 kapp
