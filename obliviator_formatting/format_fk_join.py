@@ -45,6 +45,11 @@ def format_for_fk_join(
             for row in reader:
                 join_key = row[key1]
                 payload_string = ",".join(row[col] for col in payload1_cols)
+
+                # If payload string is empty, use placeholder to prevent malformed lines
+                if not payload_string:
+                    payload_string = "_"
+
                 table1_rows.append(f"{join_key} {payload_string}\n")
     except FileNotFoundError:
         raise FileNotFoundError(f"Input file not found: {filepath1}")
@@ -72,6 +77,11 @@ def format_for_fk_join(
             for row in reader:
                 join_key = row[key2]
                 payload_string = ",".join(row[col] for col in payload2_cols)
+
+                # If payload string is empty, use placeholder to prevent malformed lines
+                if not payload_string:
+                    payload_string = "_"
+
                 table2_rows.append(f"{join_key} {payload_string}\n")
     except FileNotFoundError:
         raise FileNotFoundError(f"Input file not found: {filepath2}")
