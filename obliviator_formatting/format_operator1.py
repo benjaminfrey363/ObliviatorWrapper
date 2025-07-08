@@ -33,6 +33,7 @@ def format_for_operator1(
     rows = []
     try:
         with open(filepath, mode='r', newline='', encoding='utf-8') as infile:
+            # LDBC is pipe-separated
             reader = csv.DictReader(infile, delimiter='|')
             
             # Verify that all specified columns exist in the CSV header

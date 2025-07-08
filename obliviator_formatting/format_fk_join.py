@@ -25,7 +25,8 @@ def format_for_fk_join(
     try:
         # FIX: Use 'utf-8-sig' to automatically handle Byte Order Marks (BOM)
         with open(filepath1, mode='r', newline='', encoding='utf-8-sig') as infile:
-            reader = csv.DictReader(infile)
+            # LDBC is pipe-separated
+            reader = csv.DictReader(infile, delimiter='|')
             header1 = reader.fieldnames
             if not header1:
                 raise ValueError(f"CSV file is empty or has no header: {filepath1}")
