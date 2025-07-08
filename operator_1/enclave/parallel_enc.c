@@ -182,12 +182,11 @@ int ecall_scalable_oblivious_join(char *input_path, size_t len) {
         if (key_str) { arr[i].key = atoll(key_str); }
         //if (val_str) { strncpy(arr[i].data, val_str, DATA_LENGTH); }
         // change value string handling to be safe - always null-terminated
-        // Corrected to respect 27 byte buffer size
         if (val_str) {
             // Copy up to 26 characters into the 27-byte buffer
-            strncpy(arr[i].data, val_str, 26);
+            strncpy(arr[i].data, val_str, DATA_LENGTH - 1);
             // Place the null terminator in the last position
-            arr[i].data[26] = '\0';
+            arr[i].data[DATA_LENGTH - 1] = '\0';
         }
     }
 
