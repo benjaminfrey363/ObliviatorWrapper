@@ -24,7 +24,7 @@ def reverse_relabel_for_operator1(input_path: str, output_path: str, mapping_pat
 
     with open(mapping_path, "r") as map_file:
         for line in map_file:
-            parts = line.strip().split(maxsplit=1)
+            parts = line.strip().split('|',maxsplit=1)
             if len(parts) == 2:
                 mapped_id, original_value = parts
                 reverse_map[mapped_id] = original_value

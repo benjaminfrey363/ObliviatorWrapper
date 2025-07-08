@@ -115,6 +115,7 @@ def obliviator_operator1 (
     print("\nStep 2: Relabeling data for Operator 1...")
     relabel_path = temp_dir / "op1_relabel_for_c.txt"
     mapping_path = temp_dir / "op1_value_map.txt"
+    # *NVM* changed from call to obliviator_formatting/relabel_op1.py to more robust fk join relabeling
     subprocess.run([
         "python", "obliviator_formatting/relabel_op1.py",
         "--input_path", str(format_path),
@@ -185,6 +186,7 @@ def obliviator_operator1 (
         if not obliviator_raw_output_path.exists():
             raise FileNotFoundError(f"Obliviator output file not found: {obliviator_raw_output_path}")
 
+        # *NVM* Again, changed to use more robust FK join relabeling (from reverse_relabel_op1.py)
         subprocess.run([
             "python", "obliviator_formatting/reverse_relabel_op1.py",
             "--input_path", str(obliviator_raw_output_path),
@@ -211,7 +213,7 @@ def obliviator_operator1 (
         if e.stdout: print("--- STDOUT ---\n" + e.stdout)
         if e.stderr: print("--- STDERR ---\n" + e.stderr)
         raise
-    
+
     finally:
         # Re-use the same variable to ensure we revert the exact string we wrote.
         filter_value_for_c = f"{filter_threshold_op1}LL"

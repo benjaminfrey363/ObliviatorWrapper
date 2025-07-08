@@ -57,7 +57,7 @@ def relabel_for_operator1(input_path: str, output_path: str, mapping_path: str):
     with open(mapping_path, "w") as map_file:
         # We need to invert the map for writing
         for original_val, mapped_id in value_map.items():
-            map_file.write(f"{mapped_id} {original_val}\n")
+            map_file.write(f"{mapped_id}|{original_val}\n")
     
     print("Operator 1 relabeling complete.")
 

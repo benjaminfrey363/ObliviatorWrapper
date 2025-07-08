@@ -51,7 +51,7 @@ def format_for_operator1(
                 
                 # Create the comma-separated payload string
                 payload_values = [row[col] for col in payload_cols]
-                payload_string = ",".join(payload_values)
+                payload_string = "|".join(payload_values)
                 
                 rows.append(f"{filter_value} {payload_string}\n")
 
