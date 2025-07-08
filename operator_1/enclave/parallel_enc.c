@@ -72,6 +72,7 @@ void ecall_start_work(void) {
     thread_start_work();
 }
 
+/*
 int ecall_scalable_oblivious_join(char *input_path, size_t len) {
     (void)len;
 
@@ -82,6 +83,31 @@ int ecall_scalable_oblivious_join(char *input_path, size_t len) {
     arr = calloc((length1 + length2), sizeof(*arr));
     for (int i = 0; i < length1; i++) {
         arr[i].key = atoi(strtok(NULL, " "));
+        strncpy(arr[i].data, strtok(NULL, "\n"), DATA_LENGTH);
+    }
+
+    scalable_oblivious_join(arr, length1, length2, input_path);
+    
+    free(arr);
+
+    return 0;
+}
+*/
+
+// Modified to parse 64-bit keys
+int ecall_scalable_oblivious_join(char *input_path, size_t len) {
+    (void)len;
+
+    char *length;
+    length = strtok(input_path, "\n");
+    int length1 = atoi(length);
+    int length2 = 0;
+    arr = calloc((length1 + length2), sizeof(*arr));
+    
+    // The corrected loop
+    for (int i = 0; i < length1; i++) {
+        // Use atoll for 64-bit keys
+        arr[i].key = atoll(strtok(NULL, " ")); 
         strncpy(arr[i].data, strtok(NULL, "\n"), DATA_LENGTH);
     }
 

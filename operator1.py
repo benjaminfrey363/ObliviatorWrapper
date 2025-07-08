@@ -91,7 +91,7 @@ def obliviator_operator1 (
     filter_condition_op1: str
 ):
     """
-    Runs Obliviator's "Operator 1" which performs a projection with an optional filter.
+    Run obliviator filter
     """
     print(f"Running oblivious Operator 1 (variant: {operator1_variant}) on {filepath}")
 
@@ -135,9 +135,13 @@ def obliviator_operator1 (
 
     try:
         if filter_threshold_op1 is not None:
-            print(f"Applying filter to source: key {filter_condition_op1} {filter_threshold_op1}")
-            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, MT_COMMENT_START, OP1_PLACEHOLDER_MT, MT_COMMENT_END, str(filter_threshold_op1))
-            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, ST_COMMENT_START, OP1_PLACEHOLDER_ST, ST_COMMENT_END, str(filter_threshold_op1))
+            # Note: We append "LL" to the threshold to ensure the C compiler
+            # treats it as a 64-bit long long integer, preventing overflow errors.
+            filter_value_for_c = f"{filter_threshold_op1}LL"
+
+            print(f"Applying filter to source: key {filter_condition_op1} {filter_value_for_c}")
+            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, MT_COMMENT_START, OP1_PLACEHOLDER_MT, MT_COMMENT_END, filter_value_for_c)
+            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, ST_COMMENT_START, OP1_PLACEHOLDER_ST, ST_COMMENT_END, filter_value_for_c)
             filter_modified = True
 
             valid_conditions = ['<', '>', '==', '<=', '>=', '!=']
@@ -207,14 +211,17 @@ def obliviator_operator1 (
         if e.stdout: print("--- STDOUT ---\n" + e.stdout)
         if e.stderr: print("--- STDERR ---\n" + e.stderr)
         raise
+    
     finally:
+        # Re-use the same variable to ensure we revert the exact string we wrote.
+        filter_value_for_c = f"{filter_threshold_op1}LL"
+
         if filter_modified:
-            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, MT_COMMENT_START, str(filter_threshold_op1), MT_COMMENT_END, OP1_PLACEHOLDER_MT, True)
-            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, ST_COMMENT_START, str(filter_threshold_op1), ST_COMMENT_END, OP1_PLACEHOLDER_ST, True)
+            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, MT_COMMENT_START, filter_value_for_c, MT_COMMENT_END, OP1_PLACEHOLDER_MT, True)
+            _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, ST_COMMENT_START, filter_value_for_c, ST_COMMENT_END, OP1_PLACEHOLDER_ST, True)
         if condition_modified:
             _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, MT_COND_START, filter_condition_op1, MT_COND_END, OP1_PLACEHOLDER_MT_COND, True)
             _modify_source_file(code_dir / OP1_FILTER_SOURCE_FILE_REL_PATH, ST_COND_START, filter_condition_op1, ST_COND_END, OP1_PLACEHOLDER_ST_COND, True)
-
 
 def main():
     parser = argparse.ArgumentParser(description="Wrapper for Obliviator's Operator 1 (Projection).")

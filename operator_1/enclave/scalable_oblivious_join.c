@@ -31,7 +31,7 @@ void reverse(char *s) {
     int i, j;
     char c;
 
-    for (i = 0, j = strlen(s) - 1; i<j; i++, j--) {
+    for (i = 0, j = strlen(s)-1; i<j; i++, j--) {
         c = s[i];
         s[i] = s[j];
         s[j] = c;
@@ -148,21 +148,20 @@ void scalable_oblivious_join(elem_t *arr, int length1, int length2, char* output
 
     get_time2(true);
 
+    // This block modified to accomodate 64-bit keys
+
     char *char_current = output_path;
     for (int i = 0; i < length_result; i++) {
-        int key1 = arr[i].key;
-
-        char string_key1[10];
-        int str1_len;
-        itoa(key1, string_key1, &str1_len);
-        int data_len1 = my_len(arr[i].data);
-        
-        strncpy(char_current, string_key1, str1_len);
-        char_current += str1_len; char_current[0] = ' '; char_current += 1;
-        strncpy(char_current, arr[i].data, data_len1);
-        char_current += data_len1; char_current[0] = '\n'; char_current += 1;
+        // Use sprintf to handle the 64-bit key and formatting safely.
+        // The length returned by sprintf includes the null terminator, so we subtract 1.
+        int chars_written = sprintf(char_current, "%lld %s\n", arr[i].key, arr[i].data);
+        if (chars_written > 0) {
+            char_current += chars_written;
+        }
     }
     char_current[0] = '\0';
+
+    // end of modified block
 
     return;
 }
