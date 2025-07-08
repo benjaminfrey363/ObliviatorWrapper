@@ -53,7 +53,8 @@ def format_for_fk_join(
     # --- Process the second table ---
     try:
         with open(filepath2, mode='r', newline='', encoding='utf-8-sig') as infile:
-            reader = csv.DictReader(infile)
+            # Pipe-separated
+            reader = csv.DictReader(infile, delimiter='|')
             header2 = reader.fieldnames
             if not header2:
                 raise ValueError(f"CSV file is empty or has no header: {filepath2}")
