@@ -40,7 +40,9 @@ def reconstruct_csv(
                     continue # Skip any malformed lines
 
                 filter_val, payload_str = parts
-                payload_vals = payload_str.split(',')
+                payload_vals = payload_str.split('|')
+
+                print(f"DEBUG: key='{filter_val}' payload='{payload_str}' split_vals={payload_vals}")
                 
                 # Write the reconstructed row
                 writer.writerow([filter_val] + payload_vals)
