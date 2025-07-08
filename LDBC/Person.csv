@@ -1,0 +1,4 @@
+id|firstName|lastName|birthday|locationIP|browserUsed|gender|creationDate|isLocatedIn
+933|John|Smith|1980-01-15|1.2.3.4|Chrome|male|2010-02-12T10:00:00Z|4835
+1099|Mary|Jones|1992-05-20|5.6.7.8|Firefox|female|2011-08-17T14:30:00Z|4930
+876|David|Williams|1988-11-02|9.10.11.12|Safari|male|2012-03-22T20:15:00Z|4835
