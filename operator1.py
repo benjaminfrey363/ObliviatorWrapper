@@ -88,7 +88,8 @@ def obliviator_operator1 (
     filter_col: str,
     payload_cols: List[str],
     filter_threshold_op1: Optional[int],
-    filter_condition_op1: str
+    filter_condition_op1: str,
+    no_map: bool
 ):
     """
     Run obliviator filter
@@ -111,18 +112,24 @@ def obliviator_operator1 (
     subprocess.run(format_cmd, check=True, cwd=Path(__file__).parent)
     print("Initial formatting complete.")
 
-    # --- Step 2: Relabel data specifically for Operator 1's needs ---
-    print("\nStep 2: Relabeling data for Operator 1...")
-    relabel_path = temp_dir / "op1_relabel_for_c.txt"
-    mapping_path = temp_dir / "op1_value_map.txt"
-    # *NVM* changed from call to obliviator_formatting/relabel_op1.py to more robust fk join relabeling
-    subprocess.run([
-        "python", "obliviator_formatting/relabel_op1.py",
-        "--input_path", str(format_path),
-        "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path)
-    ], check=True, cwd=Path(__file__).parent)
-    print("Operator 1 relabeling complete.")
+
+    # Relabel payload if desired
+    if not no_map:
+        # --- Step 2: Relabel data specifically for Operator 1's needs ---
+        print("\nStep 2: Relabeling data for Operator 1...")
+        relabel_path = temp_dir / "op1_relabel_for_c.txt"
+        mapping_path = temp_dir / "op1_value_map.txt"
+        # *NVM* changed from call to obliviator_formatting/relabel_op1.py to more robust fk join relabeling
+        subprocess.run([
+            "python", "obliviator_formatting/relabel_op1.py",
+            "--input_path", str(format_path),
+            "--output_path", str(relabel_path),
+            "--mapping_path", str(mapping_path)
+        ], check=True, cwd=Path(__file__).parent)
+        print("Operator 1 relabeling complete.")
+    else:
+        # just pass directly into obliviator
+        relabel_path = format_path
 
 
     print(f"\nStep 3: Running Obliviator C program ({operator1_variant} variant)...")
@@ -178,22 +185,29 @@ def obliviator_operator1 (
         except (ValueError, IndexError) as e:
             print(f"Warning: Could not parse execution time from C program output. Error: {e}")
 
-        # --- Step 4: Reverse the relabeling ---
-        print("\nStep 4: Reversing relabeling for intermediate output...")
+
+        # Check output file from obliviator
         obliviator_raw_output_path = temp_dir / (relabel_path.stem + "_output.txt")
         intermediate_output_path = temp_dir / "op1_intermediate_output.txt"
-
         if not obliviator_raw_output_path.exists():
             raise FileNotFoundError(f"Obliviator output file not found: {obliviator_raw_output_path}")
 
-        # *NVM* Again, changed to use more robust FK join relabeling (from reverse_relabel_op1.py)
-        subprocess.run([
-            "python", "obliviator_formatting/reverse_relabel_op1.py",
-            "--input_path", str(obliviator_raw_output_path),
-            "--output_path", str(intermediate_output_path),
-            "--mapping_path", str(mapping_path)
-        ], check=True, cwd=Path(__file__).parent)
-        print("Reverse relabeling complete.")
+
+        # Relabel to original payloads if desired
+        if not no_map:
+            # --- Step 4: Reverse the relabeling ---
+            print("\nStep 4: Reversing relabeling for intermediate output...")
+
+            # *NVM* Again, changed to use more robust FK join relabeling (from reverse_relabel_op1.py)
+            subprocess.run([
+                "python", "obliviator_formatting/reverse_relabel_op1.py",
+                "--input_path", str(obliviator_raw_output_path),
+                "--output_path", str(intermediate_output_path),
+                "--mapping_path", str(mapping_path) # type: ignore
+            ], check=True, cwd=Path(__file__).parent)
+            print("Reverse relabeling complete.")
+        else:
+            intermediate_output_path = obliviator_raw_output_path
 
         # --- Step 5: Reconstruct final CSV ---
         print("\nStep 5: Reconstructing final CSV file...")
@@ -235,6 +249,7 @@ def main():
     parser.add_argument("--filter_condition_op1", type=str, default="<", help="Operator for the filter (e.g., '>', '<', '=='). Remember to quote operators like '>' or '<'.")
     parser.add_argument("--operator1_variant", choices=["default", "opaque_shared_memory"], default="default", help="Specify the Operator 1 variant.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories after execution.")
+    parser.add_argument("--no_map", action="store_true", help="Pass payloads directly into obliviator without mapping to unique integer IDs.")
     args = parser.parse_args()
 
     temp_dir = Path(f"tmp_operator1_{os.getpid()}")
@@ -251,7 +266,8 @@ def main():
             args.filter_col,
             args.payload_cols,
             args.filter_threshold_op1,
-            args.filter_condition_op1
+            args.filter_condition_op1,
+            args.no_map
         )
     except Exception:
         print("\nExecution aborted due to an error.")

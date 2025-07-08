@@ -28,7 +28,8 @@ def obliviator_fk_join(
     payload2_cols: List[str],
     temp_dir: Path,
     ultimate_final_output_path: Path,
-    fk_join_variant: str
+    fk_join_variant: str,
+    no_map: bool
 ):
     """
     Runs an oblivious foreign key join using Obliviator.
@@ -48,18 +49,24 @@ def obliviator_fk_join(
     subprocess.run(format_cmd, check=True, cwd=Path(__file__).parent)
     print("Initial formatting complete.")
 
-    # --- Step 2: Relabel data using the specialized FK join script ---
-    print("\nStep 2: Relabeling data for C program...")
+
+
+    # relabel if desired
     relabel_path = temp_dir / "fk_relabel_for_c.txt"
     mapping_path = temp_dir / "fk_value_map.txt"
-    # --- FIX: Use the new, purpose-built relabeling script ---
-    subprocess.run([
-        "python", "obliviator_formatting/relabel_fk_join.py",
-        "--input_path", str(format_path),
-        "--output_path", str(relabel_path),
-        "--mapping_path", str(mapping_path)
-    ], check=True, cwd=Path(__file__).parent)
-    print("Relabeling complete.")
+    if not no_map:
+        # --- Step 2: Relabel data using the specialized FK join script ---
+        print("\nStep 2: Relabeling data for C program...")
+        # --- FIX: Use the new, purpose-built relabeling script ---
+        subprocess.run([
+            "python", "obliviator_formatting/relabel_fk_join.py",
+            "--input_path", str(format_path),
+            "--output_path", str(relabel_path),
+            "--mapping_path", str(mapping_path)
+        ], check=True, cwd=Path(__file__).parent)
+        print("Relabeling complete.")
+    else:
+        relabel_path = format_path
 
     # --- Step 3: Run the Obliviator C program ---
     print(f"\nStep 3: Running Obliviator FK Join C program...")
@@ -83,6 +90,12 @@ def obliviator_fk_join(
 
         print("Exited Obliviator FK Join successfully.")
 
+        raw_output_path = temp_dir / (relabel_path.stem + "_output.txt")
+        intermediate_output_path = temp_dir / "fk_intermediate_output.txt"
+        # Check for obliviator output
+        if not raw_output_path.exists():
+            raise FileNotFoundError(f"Obliviator output file not found: {raw_output_path}")
+
         try:
             time_output = completed_process.stdout.strip().splitlines()[0]
             time_value = float(time_output)
@@ -93,21 +106,24 @@ def obliviator_fk_join(
         except (ValueError, IndexError) as e:
             print(f"Warning: Could not parse execution time from C program output. Error: {e}")
 
-        # --- Step 4: Reverse the relabeling ---
-        print("\nStep 4: Reversing relabeling for intermediate output...")
-        raw_output_path = temp_dir / (relabel_path.stem + "_output.txt")
-        intermediate_output_path = temp_dir / "fk_intermediate_output.txt"
 
-        if not raw_output_path.exists():
-            raise FileNotFoundError(f"Obliviator output file not found: {raw_output_path}")
 
-        subprocess.run([
-            "python", "obliviator_formatting/reverse_relabel_ids.py",
-            "--input_path", str(raw_output_path),
-            "--output_path", str(intermediate_output_path),
-            "--mapping_path", str(mapping_path)
-        ], check=True, cwd=Path(__file__).parent)
-        print("Reverse relabeling complete.")
+        # Reverse relabel if needed
+        if not no_map:
+            # --- Step 4: Reverse the relabeling ---
+            print("\nStep 4: Reversing relabeling for intermediate output...")
+            subprocess.run([
+                "python", "obliviator_formatting/reverse_relabel_ids.py",
+                "--input_path", str(raw_output_path),
+                "--output_path", str(intermediate_output_path),
+                "--mapping_path", str(mapping_path)
+            ], check=True, cwd=Path(__file__).parent)
+            print("Reverse relabeling complete.")
+        else:
+            # just take output as-is
+            intermediate_output_path = raw_output_path
+
+
 
         # --- Step 5: Reconstruct final CSV ---
         print("\nStep 5: Reconstructing final CSV file...")
@@ -140,6 +156,7 @@ def main():
     parser.add_argument("--output_path", required=True, help="Path for the final output CSV file.")
     parser.add_argument("--fk_join_variant", choices=["default", "opaque_shared_memory"], default="default")
     parser.add_argument("--no_cleanup", action="store_true")
+    parser.add_argument("--no_map", action="store_true", help="Pass payloads directly into obliviator without mapping to unique integer IDs.")
     args = parser.parse_args()
 
     temp_dir = Path(f"tmp_fk_join_{os.getpid()}")
@@ -151,7 +168,7 @@ def main():
         obliviator_fk_join(
             os.path.expanduser(args.table1_path), args.key1, args.payload1_cols,
             os.path.expanduser(args.table2_path), args.key2, args.payload2_cols,
-            temp_dir, output_path, args.fk_join_variant
+            temp_dir, output_path, args.fk_join_variant, args.no_map
         )
     except Exception as e:
         print(f"\nExecution aborted due to an error: {e}")

@@ -8,12 +8,12 @@
 
 #define ELEM_SIZE 128
 #define ELEM_STRUCT_SIZE 19
-#define DATA_LENGTH 32      // MODIFIED: Default is 4
+#define DATA_LENGTH 1024          // MODIFIED: Default is 4
 
 typedef int ojoin_int_type;
 
 typedef struct elem {
-    char data[27];
+    char data[DATA_LENGTH];       // changed to accomodate varying payload sizes. Obliviator hardcoded this to 27
     bool has_value;
     long long key;                // changed from int to process large-data filtering
 } elem_t;
