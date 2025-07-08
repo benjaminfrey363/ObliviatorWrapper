@@ -15,7 +15,7 @@ typedef int ojoin_int_type;
 typedef struct elem {
     char data[27];
     bool has_value;
-    int key;
+    long long key;                // changed from int to process large-data filtering
 } elem_t;
 
 typedef struct ele2m {
