@@ -21,7 +21,8 @@ def format_for_operator2(
     rows = []
     
     with open(filepath, mode='r', newline='', encoding='utf-8-sig') as infile:
-        reader = csv.DictReader(infile)
+        # LDBC is pipe-separated
+        reader = csv.DictReader(infile, delimiter='|')
         header = reader.fieldnames
         if not header:
             raise ValueError(f"CSV file is empty or has no header: {filepath}")
