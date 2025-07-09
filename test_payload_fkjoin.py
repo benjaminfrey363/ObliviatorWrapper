@@ -14,7 +14,7 @@ TABLE1_PATH = "Big_LDBC/Person.csv"
 TABLE2_PATH = "Big_LDBC/Post.csv"
 
 # --- Test Parameters ---
-PAYLOAD_SIZES_REMAPPED = [32, 42, 46, 50, 64, 128, 256]
+PAYLOAD_SIZES_REMAPPED = [32, 42, 46, 50, 54, 64, 128, 256]
 PAYLOAD_SIZES_DIRECT = [1024, 512, 256, 128]
 
 def set_data_length(size: int):

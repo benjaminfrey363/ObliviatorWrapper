@@ -13,7 +13,7 @@ C_HEADER_PATH = Path(os.path.expanduser("~/obliviator/operator_1/common/elem_t.h
 OPERATOR_SCRIPT = "operator1.py"
 
 # --- Test Parameters ---
-PAYLOAD_SIZES = [32, 42, 46, 50, 64, 128, 256, 512, 1024]
+PAYLOAD_SIZES = [32, 42, 46, 50, 54, 64, 128, 256, 512, 1024]
 TEST_MESSAGE_ID = "2336463350747" # The ID we know works
 
 def set_data_length(size: int):
