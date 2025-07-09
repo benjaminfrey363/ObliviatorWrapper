@@ -7,17 +7,9 @@ def relabel_for_fk_join(input_path: str, output_path: str, mapping_path: str):
     """
     Relabels data specifically for the FK Join operator.
 
-    - Reads the formatted file:
-      <num_rows1> <num_rows2>
-      <key> <payload>
-      ...
-    - Creates a global mapping for all unique strings (keys and payloads).
+    - Reads the formatted file and creates a global mapping for all unique strings.
     - Writes a new file where keys/payloads are replaced by integer IDs.
-
-    Args:
-        input_path (str): Path to the formatted input file from format_fk_join.py.
-        output_path (str): Path for the relabeled file to be fed into the C program.
-        mapping_path (str): Path to write the global mapping to (mapped_id -> original_string).
+    - Writes a robust, pipe-delimited mapping file.
     """
     value_map = {}
     next_mapped_id = 0
@@ -49,16 +41,17 @@ def relabel_for_fk_join(input_path: str, output_path: str, mapping_path: str):
             
             lines_to_write.append(f"{mapped_key_id} {mapped_payload_id}\n")
 
-    # Write the relabeled output file
+    # Write the relabeled output file for the C program
     with open(output_path, 'w', encoding='utf-8') as outfile:
         if header:
             outfile.write(header)
         outfile.writelines(lines_to_write)
 
-    # Write the mapping file (mapped_id -> original_string)
+    # --- FIX: Write the mapping file using a pipe delimiter ---
+    # This ensures that complex payloads with spaces are handled correctly.
     with open(mapping_path, "w", encoding='utf-8') as map_file:
         for original_val, mapped_id in value_map.items():
-            map_file.write(f"{mapped_id} {original_val}\n")
+            map_file.write(f"{mapped_id}|{original_val}\n")
     
     print("FK Join relabeling complete.")
 
