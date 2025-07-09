@@ -13,7 +13,8 @@ C_HEADER_PATH = Path(os.path.expanduser("~/obliviator/operator_1/common/elem_t.h
 OPERATOR_SCRIPT = "operator1.py"
 
 # --- Test Parameters ---
-PAYLOAD_SIZES = [32, 42, 46, 50, 54, 64, 128, 256, 512, 1024]
+PAYLOAD_SIZES = [32, 42, 46, 47, 48, 49, 50, 54, 64, 128, 256, 512, 1024]
+PAYLOAD_TICKS = [32, 42, 46, 50, 54, 64, 128, 256, 512, 1024]
 TEST_MESSAGE_ID = "2336463350747" # The ID we know works
 
 def set_data_length(size: int):
@@ -92,7 +93,7 @@ def main():
     ax.grid(True, which="both", ls="--")
 
     # --- NEW: Set explicit x-axis labels ---
-    ax.set_xticks(PAYLOAD_SIZES)
+    ax.set_xticks(PAYLOAD_TICKS)
     ax.get_xaxis().set_major_formatter(mticker.ScalarFormatter())
     # --- End of new code ---
 
