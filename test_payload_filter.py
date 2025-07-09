@@ -1,62 +1,104 @@
 import subprocess
 import re
+import os
+from pathlib import Path
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import pandas as pd
+import time
 
-def set_data_length(size):
+# --- Configuration ---
+# IMPORTANT: Adjust this path to match your filter operator's location.
+C_HEADER_PATH = Path(os.path.expanduser("~/obliviator/operator_1/common/elem_t.h"))
+OPERATOR_SCRIPT = "operator1.py" # Assumes a version of operator1.py that bypasses relabeling
+
+# --- Test Parameters ---
+PAYLOAD_SIZES = [32, 50, 64, 128, 256, 512, 1024]
+TEST_MESSAGE_ID = "2336463350747" # The ID we know works
+
+def set_data_length(size: int):
     """Finds and replaces DATA_LENGTH in the C header file."""
-    header_path = "operator_1/common/elem_t.h"
-    with open(header_path, "r") as f:
-        content = f.read()
-    
-    # Use regex to find and replace the #define line
-    new_content = re.sub(r"#define\s+DATA_LENGTH\s+\d+", f"#define DATA_LENGTH {size}", content)
-    
-    with open(header_path, "w") as f:
-        f.write(new_content)
-    print(f"Set DATA_LENGTH to {size}")
+    print(f"\n--- Setting DATA_LENGTH to {size} ---")
+    if not C_HEADER_PATH.exists():
+        raise FileNotFoundError(f"C header file not found at: {C_HEADER_PATH}")
+    try:
+        with open(C_HEADER_PATH, "r") as f:
+            content = f.read()
+        new_content, count = re.subn(r"(#define\s+DATA_LENGTH\s+)\d+", rf"\g<1>{size}", content)
+        if count == 0:
+            raise ValueError(f"Could not find '#define DATA_LENGTH' in {C_HEADER_PATH}")
+        with open(C_HEADER_PATH, "w") as f:
+            f.write(new_content)
+        print(f"Successfully set DATA_LENGTH to {size}")
+    except Exception as e:
+        print(f"Error modifying C header file: {e}")
+        raise
 
 def run_test():
-    """Runs the modified operator1.py script and returns the execution time."""
-    # NOTE: This assumes you have a modified operator1_direct.py that bypasses relabeling
-    cmd = [
-        "python", "operator1.py", # Your modified script
+    """Runs the filter operator script and returns the execution time."""
+    output_file = "Big_LDBC/sr4_perf_output.csv"
+    time_file = Path(output_file).with_suffix('.time')
+    command = [
+        "python", OPERATOR_SCRIPT,
         "--filepath", "Big_LDBC/Post.csv",
-        "--output_path", "Big_LDBC/sr4_perf_output.csv",
+        "--output_path", output_file,
         "--filter_col", "id",
         "--payload_cols", "content", "creationDate",
-        "--filter_threshold_op1", "2336463350747",
+        "--filter_threshold_op1", TEST_MESSAGE_ID,
         "--filter_condition_op1", "==",
-	"--no_map"    
+	"--no_map"
     ]
-    subprocess.run(cmd, check=True)
-    
-    with open("Big_LDBC/sr4_perf_output.time", "r") as f:
-        return float(f.read())
+    try:
+        print("Running test with direct payloads...")
+        subprocess.run(command, check=True, capture_output=True, text=True)
+        if time_file.exists():
+            with open(time_file, "r") as f:
+                return float(f.read().strip())
+        else:
+            raise FileNotFoundError(f"Time file not found: {time_file}")
+    except subprocess.CalledProcessError as e:
+        print("--- TEST FAILED ---")
+        print(f"Command failed with exit code {e.returncode}")
+        print("STDERR:", e.stderr)
+        return None
 
-# --- Main Test Logic ---
-payload_sizes = [32, 50, 64, 128, 256, 512, 1024]
-execution_times = []
+def main():
+    """Main function to orchestrate the performance testing."""
+    results = []
+    print("=== STARTING FILTER OPERATOR PERFORMANCE TEST ===")
+    for size in PAYLOAD_SIZES:
+        set_data_length(size)
+        time.sleep(1) # Delay to ensure file system changes are registered
+        exec_time = run_test()
+        if exec_time is not None:
+            results.append({"Payload Size (Bytes)": size, "Execution Time (s)": exec_time})
 
-print("Running warm-up test with payload size 100B.")
-# warm up test
-set_data_length(100)
-run_test()
+    if not results:
+        print("\nNo successful tests were completed. Cannot generate plot.")
+        return
 
-for size in payload_sizes:
-    set_data_length(size)
-    time_taken = run_test()
-    execution_times.append(time_taken)
-    print(f"Execution time for {size}B payload: {time_taken:.4f}s")
+    df = pd.DataFrame(results)
+    print("\n\n--- PERFORMANCE TEST RESULTS ---")
+    print(df)
 
-# --- Plotting Results ---
-plt.figure(figsize=(10, 6))
-plt.plot(payload_sizes, execution_times, marker='o')
-plt.title('Obliviator Performance vs. Payload Size')
-plt.xlabel('Payload Buffer Size (Bytes)')
-plt.ylabel('Execution Time (s)')
-plt.grid(True)
-plt.xscale('log') # Log scale might be useful for the x-axis
-plt.savefig('performance_graph.png')
-print("\nGraph saved to performance_graph.png")
+    # --- Plotting ---
+    plt.style.use('seaborn-v0_8-whitegrid')
+    fig, ax = plt.subplots(figsize=(12, 7))
+    ax.plot(df["Payload Size (Bytes)"], df["Execution Time (s)"], marker='o', linestyle='-')
+    ax.set_title("Filter Operator Performance vs. Payload Size", fontsize=16)
+    ax.set_xlabel("Payload Buffer Size (Bytes)", fontsize=12)
+    ax.set_ylabel("Execution Time (s)", fontsize=12)
+    ax.set_xscale('log')
+    ax.grid(True, which="both", ls="--")
 
-print(execution_times)
+    # --- NEW: Set explicit x-axis labels ---
+    ax.set_xticks(PAYLOAD_SIZES)
+    ax.get_xaxis().set_major_formatter(mticker.ScalarFormatter())
+    # --- End of new code ---
+
+    output_image_path = "filter_performance.png"
+    plt.savefig(output_image_path)
+    print(f"\n✅ Performance graph saved to {output_image_path}")
+
+if __name__ == "__main__":
+    main()
