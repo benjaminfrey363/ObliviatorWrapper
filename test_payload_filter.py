@@ -10,10 +10,10 @@ import time
 # --- Configuration ---
 # IMPORTANT: Adjust this path to match your filter operator's location.
 C_HEADER_PATH = Path(os.path.expanduser("~/obliviator/operator_1/common/elem_t.h"))
-OPERATOR_SCRIPT = "operator1.py" # Assumes a version of operator1.py that bypasses relabeling
+OPERATOR_SCRIPT = "operator1.py"
 
 # --- Test Parameters ---
-PAYLOAD_SIZES = [32, 50, 64, 128, 256, 512, 1024]
+PAYLOAD_SIZES = [32, 42, 46, 50, 64, 128, 256, 512, 1024]
 TEST_MESSAGE_ID = "2336463350747" # The ID we know works
 
 def set_data_length(size: int):
@@ -46,7 +46,7 @@ def run_test():
         "--payload_cols", "content", "creationDate",
         "--filter_threshold_op1", TEST_MESSAGE_ID,
         "--filter_condition_op1", "==",
-	"--no_map"
+        "--no_map"
     ]
     try:
         print("Running test with direct payloads...")
