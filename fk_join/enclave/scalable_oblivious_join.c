@@ -256,6 +256,9 @@ void scalable_oblivious_join(elem_t *arr, long long length1, long long length2, 
     
     get_time2(true);
     
+
+    // old version, updated to write pipe-delimited output
+    /*
     char *char_current = output_path;
     for (int i = 0; i < result_length; i++) {
         int key1 = arr[i].key;
@@ -279,6 +282,27 @@ void scalable_oblivious_join(elem_t *arr, long long length1, long long length2, 
         char_current += data_len2; char_current[0] = '\n'; char_current += 1;
     }
     char_current[0] = '\0';
+    */
+
+    char *char_current = output_path;
+    for (long long i = 0; i < result_length; i++) {
+        // Note: The join logic places the payload from table 1 into arr_
+        // and the payload from table 2 into arr. The keys are the same.
+        long long join_key = arr[i].key;
+        char* payload_t1 = arr_[i].data;
+        char* payload_t2 = arr[i].data;
+
+        // Use sprintf to write a clean, pipe-delimited line.
+        // This format matches what our Python reconstruction script expects.
+        int chars_written = sprintf(char_current, "%lld|%s|%s\n", 
+                                    join_key, payload_t1, payload_t2);
+        
+        if (chars_written > 0) {
+            char_current += chars_written;
+        }
+    }
+    *char_current = '\0'; // Null-terminate the final string
+
 
     free(ag_tree);
     free(arr_temp);

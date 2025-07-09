@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define DATA_LENGTH 23
+#define DATA_LENGTH 128
 
 typedef long long ojoin_int_type;
 
@@ -16,6 +16,7 @@ typedef struct elem {
     long long key;
 } elem_t;
 
-static_assert(sizeof(elem_t) == 32, "Element should be 32 bytes");
+// COMMENTED OUT TO ACHIEVE VARIABLE PAYLOAD
+//static_assert(sizeof(elem_t) == 32, "Element should be 32 bytes");
 
 #endif /* common/elem_t.h */

@@ -75,6 +75,8 @@ void ecall_start_work(void) {
     thread_start_work();
 }
 
+// ORIGINAL: updated to be able to modify payload size
+/*
 int ecall_scalable_oblivious_join(char *input_path, size_t len) {
     (void)len;
 
@@ -101,3 +103,63 @@ int ecall_scalable_oblivious_join(char *input_path, size_t len) {
 
     return 0;
 }
+*/
+
+
+// In enclave/parallel_enc.c
+
+int ecall_scalable_oblivious_join(char *input_path, size_t len) {
+    (void)len;
+
+    char *line_iterator;
+    char *token_iterator;
+    char *line;
+    char *key_str;
+    char *val_str;
+
+    // --- Parse Header ---
+    line = strtok_r(input_path, "\n", &line_iterator);
+    key_str = strtok_r(line, " ", &token_iterator);
+    val_str = strtok_r(NULL, "\n", &token_iterator);
+    long long length1 = atoll(key_str);
+    long long length2 = atoll(val_str);
+
+    arr = calloc((length1 + length2), sizeof(*arr));
+    if (arr == NULL) { return -1; /* Allocation failed */ }
+
+    // --- Parse Table 1 ---
+    for (long long i = 0; i < length1; i++) {
+        line = strtok_r(NULL, "\n", &line_iterator);
+        if (line == NULL) break;
+        key_str = strtok_r(line, " ", &token_iterator);
+        val_str = strtok_r(NULL, "\n", &token_iterator);
+        if (key_str) arr[i].key = atoll(key_str);
+        if (val_str) {
+            strncpy(arr[i].data, val_str, DATA_LENGTH - 1);
+            arr[i].data[DATA_LENGTH - 1] = '\0';
+        }
+        arr[i].table_0 = true;
+    }
+
+    // --- Parse Table 2 ---
+    for (long long i = length1; i < length1 + length2; i++) {
+        line = strtok_r(NULL, "\n", &line_iterator);
+        if (line == NULL) break;
+        key_str = strtok_r(line, " ", &token_iterator);
+        val_str = strtok_r(NULL, "\n", &token_iterator);
+        if (key_str) arr[i].key = atoll(key_str);
+        if (val_str) {
+            strncpy(arr[i].data, val_str, DATA_LENGTH - 1);
+            arr[i].data[DATA_LENGTH - 1] = '\0';
+        }
+        arr[i].table_0 = false;
+    }
+
+    scalable_oblivious_join(arr, length1, length2, input_path);
+
+    free(arr);
+
+    return 0;
+}
+
+

@@ -44,7 +44,7 @@ def format_for_fk_join(
             
             for row in reader:
                 join_key = row[key1]
-                payload_string = ",".join(row[col] for col in payload1_cols)
+                payload_string = "|".join(row[col] for col in payload1_cols)
 
                 # If payload string is empty, use placeholder to prevent malformed lines
                 if not payload_string:
@@ -76,7 +76,7 @@ def format_for_fk_join(
 
             for row in reader:
                 join_key = row[key2]
-                payload_string = ",".join(row[col] for col in payload2_cols)
+                payload_string = "|".join(row[col] for col in payload2_cols)
 
                 # If payload string is empty, use placeholder to prevent malformed lines
                 if not payload_string:
