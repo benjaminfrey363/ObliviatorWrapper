@@ -14,7 +14,8 @@ TABLE1_PATH = "Big_LDBC/Person.csv"
 TABLE2_PATH = "Big_LDBC/Post.csv"
 
 # --- Test Parameters ---
-PAYLOAD_SIZES_REMAPPED = [32, 42, 46, 50, 54, 64, 128, 256]
+PAYLOAD_SIZES_REMAPPED = [32, 42, 46, 47, 48, 49, 50, 54, 64, 128, 256]
+PAYLOAD_REMAPPED_TICKS = [32, 42, 46, 50, 54, 64, 128, 256, 512, 1024]
 PAYLOAD_SIZES_DIRECT = [1024, 512, 256, 128]
 
 def set_data_length(size: int):
@@ -106,7 +107,7 @@ def main():
     ax.grid(True, which="both", ls="--")
 
     # --- NEW: Set explicit x-axis labels ---
-    all_sizes = sorted(list(set(PAYLOAD_SIZES_REMAPPED + PAYLOAD_SIZES_DIRECT)))
+    all_sizes = sorted(list(set(PAYLOAD_REMAPPED_TICKS + PAYLOAD_SIZES_DIRECT)))
     ax.set_xticks(all_sizes)
     ax.get_xaxis().set_major_formatter(mticker.ScalarFormatter())
     # --- End of new code ---
