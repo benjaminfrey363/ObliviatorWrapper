@@ -5,7 +5,16 @@ from pathlib import Path
 import argparse
 import shutil
 import csv
-from short1 import _cleanup_temp_dir
+
+
+def _cleanup_temp_dir(temp_dir_path: Path):
+    """Removes the specified temporary directory and its contents."""
+    if temp_dir_path.exists() and temp_dir_path.is_dir():
+        print(f"\nCleaning up temporary directory: {temp_dir_path}...")
+        try:
+            shutil.rmtree(temp_dir_path)
+        except OSError as e:
+            print(f"Error cleaning up temporary directory {temp_dir_path}: {e}")
 
 # LDBC Short Read 4
 # Content of a message
