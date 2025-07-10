@@ -62,11 +62,10 @@ def shortread1 (
         # --- Step 2: Filter this joined output for the desired person
 
         print(f"Step 2: Filtering result of join for person with ID {person_id}.")
-        final_output_path = Path("sr1putput.csv")
         filter_cmd = [
             "python", "operator1.py",
             "--filepath", str(join_output_path),
-            "--output_path", str(final_output_path),
+            "--output_path", output_path,
             "--filter_col", "id",
             "--payload_cols", "firstName", "name",
             "--filter_threshold_op1", str(person_id),
@@ -74,7 +73,7 @@ def shortread1 (
         ]
         subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
         print("Obliviator filter exited succesfully.")
-        print(f"Output of short read 1 written to {str(final_output_path)}")
+        print(f"Output of short read 1 written to {output_path}")
 
         # That's it for this one!
 

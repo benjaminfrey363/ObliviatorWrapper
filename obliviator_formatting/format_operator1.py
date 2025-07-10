@@ -34,7 +34,7 @@ def format_for_operator1(
     try:
         with open(filepath, mode='r', newline='', encoding='utf-8') as infile:
             # LDBC is pipe-separated
-            reader = csv.DictReader(infile, delimiter=',')
+            reader = csv.DictReader(infile, delimiter='|')
             
             # Verify that all specified columns exist in the CSV header
             header = reader.fieldnames
@@ -50,7 +50,7 @@ def format_for_operator1(
             for row in reader:
                 filter_value = row[filter_col]
                 
-                # Create the comma-separated payload string
+                # Create the pipe-separated payload string
                 payload_values = [row[col] for col in payload_cols]
                 payload_string = "|".join(payload_values)
                 
