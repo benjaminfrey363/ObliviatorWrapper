@@ -49,7 +49,7 @@ def shortread1 (
             "python", "fkjoin.py",
             "--table1_path", str(person_path),
             "--key1", "LocationCityId",
-            "--payload1_cols", "id", "firstName",
+            "--payload1_cols", "id", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate",
             "--table2_path", str(place_path),
             "--key2", "id",
             "--payload2_cols", "name",
@@ -67,7 +67,7 @@ def shortread1 (
             "--filepath", str(join_output_path),
             "--output_path", output_path,
             "--filter_col", "id",
-            "--payload_cols", "firstName", "name",
+            "--payload_cols", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate", "name",
             "--filter_threshold_op1", str(person_id),
             "--filter_condition_op1", "==",
         ]
@@ -93,7 +93,7 @@ def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 1.")
     parser.add_argument("--person_id", type=int, required=True, help="The ID of the person to look up.")
     parser.add_argument("--LDBC_dir_path", default="Big_LDBC", help="Path to LDBC database.")
-    parser.add_argument("--output_path", default="Big_LDBC/sr4_output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr1_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
