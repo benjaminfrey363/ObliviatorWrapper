@@ -31,7 +31,7 @@ def reconstruct_csv(
         with open(intermediate_path, 'r', encoding='utf-8') as infile, \
              open(final_csv_path, 'w', newline='', encoding='utf-8') as outfile:
             
-            writer = csv.writer(outfile)
+            writer = csv.writer(outfile, delimiter='|')
             writer.writerow(final_header) # Write the header row
 
             for line in infile:

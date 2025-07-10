@@ -21,7 +21,7 @@ def reconstruct_agg_csv(
     with open(intermediate_path, 'r', encoding='utf-8') as infile, \
          open(final_csv_path, 'w', newline='', encoding='utf-8') as outfile:
         
-        writer = csv.writer(outfile)
+        writer = csv.writer(outfile, delimiter='|')
         writer.writerow(final_header)
 
         for line in infile:
