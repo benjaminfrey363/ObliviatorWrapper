@@ -41,23 +41,25 @@ def shortread1 (
 
         # --- Step 1: Join Person.csv with Place.csv on LocationCityId
 
+        # Since FK join, join representative place table with primary key person table
         print("Step 1: Joining Person.csv with Place.csv on LocationCitId")
         person_path = LDBC_dir_path + "/Person.csv"
         place_path = LDBC_dir_path + "/Place.csv"
         join_output_path = temp_dir / "sr1part1.csv"
         join_cmd = [
             "python", "fkjoin.py",
-            "--table1_path", str(person_path),
-            "--key1", "LocationCityId",
-            "--payload1_cols", "id", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate",
-            "--table2_path", str(place_path),
-            "--key2", "id",
-            "--payload2_cols", "name",
+            "--table1_path", str(place_path),
+            "--key1", "id",
+            "--payload1_cols", "name",
+            "--table2_path", str(person_path),      # key table
+            "--key2", "LocationCityId",
+            "--payload2_cols", "id", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate",
             "--output_path", str(join_output_path)
         ]
         subprocess.run(join_cmd, check=True, cwd=Path(__file__).parent)
         print("Obliviator join exited successfully.")
 
+        # Output will now have more specific headers, can specify t2.id to filter on person id.
 
         # --- Step 2: Filter this joined output for the desired person
 
@@ -66,8 +68,8 @@ def shortread1 (
             "python", "operator1.py",
             "--filepath", str(join_output_path),
             "--output_path", output_path,
-            "--filter_col", "id",
-            "--payload_cols", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate", "name",
+            "--filter_col", "t2.id",
+            "--payload_cols", "t2.firstName", "t2.lastName", "t2.birthday", "t2.locationIP", "t2.browserUsed", "t2.gender", "t2.creationDate", "t1.name",
             "--filter_threshold_op1", str(person_id),
             "--filter_condition_op1", "==",
         ]

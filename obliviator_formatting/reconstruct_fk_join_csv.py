@@ -64,7 +64,8 @@ def reconstruct_fk_join_csv(
     print("--- Reconstructing Final FK Join CSV ---")
     
     # The final header includes the key and all payload headers
-    final_header = [key_header] + payload1_headers + payload2_headers
+    # Specify which table came frome
+    final_header = ["t1." + key_header] + [ "t1." + header for header in payload1_headers ] + [ "t2." + header for header in payload2_headers ]
     
     with open(intermediate_path, 'r', encoding='utf-8') as infile, \
          open(final_csv_path, 'w', newline='', encoding='utf-8') as outfile:

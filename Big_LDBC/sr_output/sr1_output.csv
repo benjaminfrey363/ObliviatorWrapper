@@ -1,2 +1,2 @@
-id|firstName|lastName|birthday|locationIP|browserUsed|gender|creationDate|name
-8796093028975|Guillermo|Rodriguez|1982-12-06|190.15.154.150|Firefox|female|2010-10-29T19:42:46.893+00:00|Jagüey_Grande
+t2.id|t2.firstName|t2.lastName|t2.birthday|t2.locationIP|t2.browserUsed|t2.gender|t2.creationDate|t1.name
+218|Mike|Wilson|1984-05-23|24.53.139.223|Internet Explorer|female|2010-01-17T08:54:00.300+00:00|Indianapolis
