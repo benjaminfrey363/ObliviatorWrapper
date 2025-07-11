@@ -1,3 +1,0 @@
-10|103|Charlie|Engineering
-10|101|Alice|Engineering
-30|104|Diana|Marketing
