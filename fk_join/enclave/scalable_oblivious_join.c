@@ -190,10 +190,16 @@ void aggregation_tree_op2(void *voidargs) {
 
 void scalable_oblivious_join(elem_t *arr, long long length1, long long length2, char* output_path){
     long long length = length1 + length2;
+    
+
+    //init_time2();       // timer starts before allocation
+
+
     elem_t* arr_ = calloc(length, sizeof(*arr_));
     for (long long i = 0; i < length; i++) {
         arr_[i].table_0 = false;
     }
+    
     bool condition;
     bool condition2;
     long long length_thread = length / number_threads;
@@ -202,14 +208,20 @@ void scalable_oblivious_join(elem_t *arr, long long length1, long long length2, 
     long long idx_start_thread[number_threads + 1];
     idx_start_thread[0] = 0;
     struct thread_work multi_thread_aggregation_tree_1[number_threads - 1];
+    
     ag_tree = calloc(2 * number_threads - 1, sizeof(*ag_tree));
     ag_tree[0].table0_prefix = 0;
     ag_tree[0].complete2 = true;
     elem_t* arr_temp = calloc(1, sizeof(*arr_temp));
     control_bit = calloc(length, sizeof(*control_bit));
+    
     int result_length = 0;
     control_bit[0] = false;
-    init_time2();
+
+    
+    init_time2();       // timer starts after allocation
+
+
 
     bitonic_sort(arr, true, 0, length, number_threads, true);
 

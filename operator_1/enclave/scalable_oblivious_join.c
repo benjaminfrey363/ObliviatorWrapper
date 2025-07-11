@@ -104,6 +104,9 @@ void soj_scan_1(void *voidargs) {
 
 
 void scalable_oblivious_join(elem_t *arr, int length1, int length2, char* output_path){
+    
+    //init_time2();       // timer starts before allocation
+    
     control_bit = calloc(length1, sizeof(*control_bit));
     (void)length2;
     int length_thread = length1 / number_threads;
@@ -113,7 +116,11 @@ void scalable_oblivious_join(elem_t *arr, int length1, int length2, char* output
     index_start_thread[0] = 0;
     struct thread_work soj_scan_1_[number_threads - 1];
     int length_result;
-    init_time2();
+    
+
+
+    init_time2();       // timer starts after allocation
+
 
     if (number_threads == 1) {
         for (int i = 0; i < length1; i++) {
