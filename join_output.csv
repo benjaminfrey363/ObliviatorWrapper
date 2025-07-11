@@ -1,4 +1,0 @@
-t1.dept_id|t1.employee_id|t1.first_name|t2.dept_name
-10|103|Charlie|Engineering
-10|101|Alice|Engineering
-30|104|Diana|Marketing

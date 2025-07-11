@@ -1,9 +1,0 @@
-5 3
-10 101|Alice
-20 102|Bob
-10 103|Charlie
-30 104|Diana
-99 105|Eve
-10 Engineering
-30 Marketing
-40 Sales
