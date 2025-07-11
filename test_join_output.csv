@@ -1,4 +1,4 @@
-t1.id|t1.name|t2.firstName
-1|Waterloo|Ben
-2|Calgary|Danica
-2|Calgary|Isa
+t1.LocationCityId|t1.firstName|t2.name
+UNMAPPED_0|UNMAPPED_1|UNMAPPED_5
+UNMAPPED_2|UNMAPPED_4|UNMAPPED_6
+UNMAPPED_2|UNMAPPED_3|UNMAPPED_6
