@@ -178,7 +178,13 @@ void scalable_oblivious_join(elem_t *arr, int length1, int length2, char* output
     int *index_target_;
     int *index_target2_;
     int pre_allocate_size = length1;
-    int warmup_size = 1073741824;
+
+    //int warmup_size = 1073741824;
+
+    // modified for small machines:
+    int warmup_size = 1048576; // 1M elements, was ~1B
+
+
     #ifdef PRE_ALLOCATION
         arr1 = calloc(pre_allocate_size, sizeof(*arr1));
         arr2 = calloc(pre_allocate_size, sizeof(*arr2));

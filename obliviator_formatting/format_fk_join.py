@@ -100,10 +100,10 @@ def main():
     parser = argparse.ArgumentParser(description="Formats two CSV files for an Obliviator Join.")
     parser.add_argument("--filepath1", required=True)
     parser.add_argument("--key1", required=True)
-    parser.add_argument("--payload1_cols", nargs='+', required=True)
+    parser.add_argument("--payload1_cols", nargs='*', required=False, default = [])
     parser.add_argument("--filepath2", required=True)
     parser.add_argument("--key2", required=True)
-    parser.add_argument("--payload2_cols", nargs='+', required=True)
+    parser.add_argument("--payload2_cols", nargs='*', required=False, default=[])
     parser.add_argument("--output_path", required=True)
     args = parser.parse_args()
     

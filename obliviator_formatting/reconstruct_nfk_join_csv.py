@@ -33,8 +33,11 @@ def reconstruct_nfk_join_csv(
             
             key_str, p1_str, p2_str = parts
             
-            p1_vals = p1_str.split('|')
-            p2_vals = p2_str.split('|')
+            #p1_vals = p1_str.split('|')
+            #p2_vals = p2_str.split('|')
+
+            p1_vals = p1_str.split('|') if p1_str else []
+            p2_vals = p2_str.split('|') if p2_str else []
             
             # Write the final reconstructed row
             writer.writerow([key_str] + p1_vals + p2_vals)
