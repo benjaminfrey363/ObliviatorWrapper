@@ -1,8 +1,0 @@
-3 4
-1 _
-2 _
-3 _
-1 Ben
-2 Isa
-2 Danica
-3 Sushen
