@@ -50,7 +50,9 @@ THIRD_PARTY_LIBS = $(LIBOBLIVIOUS_LIB)
 
 CPPFLAGS = -I. \
 	-I$(LIBOBLIVIOUS)/include
-CFLAGS = -march=native -mno-avx512f -O3 -Wall -Wextra -Werror -D PRE_ALLOCATION
+CFLAGS = -march=native -mno-avx512f -O3 -Wall -Wextra -Werror
+# Comment out to toggle pre-allocation
+CFLAGS += -D PRE_ALLOCATION
 LDFLAGS = \
 	-L$(LIBOBLIVIOUS)
 LDLIBS = \
