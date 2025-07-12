@@ -22,7 +22,7 @@ def _cleanup_temp_dir(temp_dir_path: Path):
 # and the date at which they became friends.
 
 # Using obliviator:
-#   NFK join of Person.csv with Person_knows_Person.csv on Person1Id - find all friends of all people
+#   NFK join of Person_knows_Person.csv with Person.csv on Person2Id - find all friends of all people
 #   Filter for desired $personId
 
 def shortread3 (
@@ -33,7 +33,7 @@ def shortread3 (
 ):
     print(f"--- Running LDBC Short Read 3 for Person ID {person_id} ---")
     # create temp directory for the query
-    temp_dir = Path(f"tmp_ldbc_sr1_{os.getpid()}")
+    temp_dir = Path(f"tmp_ldbc_sr3_{os.getpid()}")
     temp_dir.mkdir(exist_ok=True)
     print(f"Created temporary directory: {temp_dir}")
 
@@ -41,17 +41,18 @@ def shortread3 (
 
         # --- Step 1: NFK join of Person.csv with Person_knows_Person.csv on Person1Id
         #       find all friends of all people
-        print("Step 1: Joining Person.csv with Person_knows_Person.csv on Person1Id")
+        print("Step 1: Joining Person_knows_Person.csv with Person.csv on Person2Id")
         person_path = LDBC_dir_path + "/Person.csv"
         edge_path = LDBC_dir_path + "/Person_knows_Person.csv"
         join1_output_path = temp_dir / "sr3part1.csv"
         join1_cmd = [
             "python", "join.py",
-            "--table1_path", person_path,
-            "--key1", "id",
-            "--table2_path", edge_path,
-            "--key2", "Person1Id",
-            "--payload2_cols", "creationDate", "Person2Id",
+            "--table1_path", edge_path,
+            "--key1", "Person2Id",
+            "--payload1_cols", "Person1Id", "creationDate",
+            "--table2_path", person_path,
+            "--key2", "id",
+            "--payload2_cols", "firstName", "lastName",
             "--output_path", str(join1_output_path)
         ]
         if no_cleanup:
@@ -60,50 +61,26 @@ def shortread3 (
         print("Obliviator join exited successfully.")
 
         # At this point columns are
+        # t1.Person2Id|t1.Person1Id|t1.creationDate|t2.firstName|t2.lastName
+        # filter this file on t1.Person1Id to find friends of person
 
-
-
-        '''
-        # --- Step 1: Join Person.csv with Place.csv on LocationCityId
-
-        # Since FK join, join representative place table with primary key person table
-        print("Step 1: Joining Person.csv with Place.csv on LocationCitId")
-        person_path = LDBC_dir_path + "/Person.csv"
-        place_path = LDBC_dir_path + "/Place.csv"
-        join_output_path = temp_dir / "sr1part1.csv"
-        join_cmd = [
-            "python", "fkjoin.py",
-            "--table1_path", str(place_path),
-            "--key1", "id",
-            "--payload1_cols", "name",
-            "--table2_path", str(person_path),      # key table
-            "--key2", "LocationCityId",
-            "--payload2_cols", "id", "firstName", "lastName", "birthday", "locationIP", "browserUsed", "gender", "creationDate",
-            "--output_path", str(join_output_path)
-        ]
-        subprocess.run(join_cmd, check=True, cwd=Path(__file__).parent)
-        print("Obliviator join exited successfully.")
-
-        # Output will now have more specific headers, can specify t2.id to filter on person id.
-
-        # --- Step 2: Filter this joined output for the desired person
-
-        print(f"Step 2: Filtering result of join for person with ID {person_id}.")
+        # --- Step 2: Filter this joined output on t1.Person1Id to get details of
+        #       friends of specified person
+        print(f"Step 2: Filtering result of join on $Person1Id = {person_id}")
         filter_cmd = [
             "python", "operator1.py",
-            "--filepath", str(join_output_path),
+            "--filepath", str(join1_output_path),
             "--output_path", output_path,
-            "--filter_col", "t2.id",
-            "--payload_cols", "t2.firstName", "t2.lastName", "t2.birthday", "t2.locationIP", "t2.browserUsed", "t2.gender", "t2.creationDate", "t1.name",
+            "--filter_col", "t1.Person1Id",
+            "--payload_cols", "t1.Person2Id", "t1.creationDate", "t2.firstName", "t2.lastName",
             "--filter_threshold_op1", str(person_id),
-            "--filter_condition_op1", "==",
+            "--filter_condition_op1", "=="
         ]
+        if no_cleanup:
+            filter_cmd.append("--no_cleanup")
         subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
-        print("Obliviator filter exited succesfully.")
-        print(f"Output of short read 1 written to {output_path}")
-        '''
-
-        # That's it for this one!
+        print("Obliviator filter exited successfully.")
+        print(f"Output of short read 3 written to {output_path}.")
 
     
     except Exception as e:
@@ -121,7 +98,7 @@ def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 1.")
     parser.add_argument("--person_id", type=int, required=True, help="The ID of the person to look up.")
     parser.add_argument("--LDBC_dir_path", default="Big_LDBC", help="Path to LDBC database.")
-    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr1_output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr3_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
