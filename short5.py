@@ -75,7 +75,7 @@ def shortread5 (
             filter_cmd.append("--no_cleanup")
         subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
         print("Obliviator filter exited successfully.")
-        print(f"Output of short read 3 written to {output_path}.")
+        print(f"Output of short read 5 written to {output_path}.")
 
     
     except Exception as e:
@@ -92,8 +92,8 @@ def shortread5 (
 def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 5.")
     parser.add_argument("--message_id", type=int, required=True, help="The ID of the person to look up.")
-    parser.add_argument("--LDBC_dir_path", default="Big_LDBC", help="Path to LDBC database.")
-    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr5_output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--LDBC_dir_path", default="LDBC_SF1", help="Path to LDBC database.")
+    parser.add_argument("--output_path", default="LDBC_SF1/sr_output/sr5_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
