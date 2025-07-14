@@ -97,8 +97,8 @@ def shortread3 (
 def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 3.")
     parser.add_argument("--person_id", type=int, required=True, help="The ID of the person to look up.")
-    parser.add_argument("--LDBC_dir_path", default="Big_LDBC", help="Path to LDBC database.")
-    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr3_output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--LDBC_dir_path", default="LDBC_SF1", help="Path to LDBC database.")
+    parser.add_argument("--output_path", default="LDBC_SF1/sr_output/sr3_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
