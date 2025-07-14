@@ -4,3 +4,6 @@ flat_csv/
 
 # and BDB data
 data/
+
+# and SF1 LDBC data
+LDBC_SF1/
