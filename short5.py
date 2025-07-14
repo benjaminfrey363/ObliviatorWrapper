@@ -79,7 +79,7 @@ def shortread5 (
 
     
     except Exception as e:
-        print(f"\n--- FATAL ERROR during LDBC SR1 execution: {e} ---")
+        print(f"\n--- FATAL ERROR during LDBC SR5 execution: {e} ---")
         raise
     finally:
         if not no_cleanup:
