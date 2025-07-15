@@ -68,6 +68,11 @@ def shortread4 (
         print("Obliviator filter exited successfully.")
 
         # That's it for this one!
+        # Finally, calculate composite time of all obliviator operations
+        total_time = 0.0
+        with open(Path(output_path).with_suffix(".time"), 'r') as tf:
+            total_time += float(tf.read().strip())
+        print(f"\n\nTotal time to execute Query 4: {total_time}\n\n")
 
     
     except Exception as e:

@@ -79,6 +79,20 @@ def shortread1 (
 
         # That's it for this one!
 
+        # Finally, calculate composite time of all obliviator operations
+        total_time = 0.0
+        join_time_file = str(join_output_path.with_suffix(".time"))
+        with open(join_time_file, 'r') as tf:
+            total_time += float(tf.read().strip())
+        output_path_obj = Path(output_path)
+        filter_time_file = str(output_path_obj.with_suffix(".time"))
+        with open(filter_time_file, 'r') as tf:
+            total_time += float(tf.read().strip())
+        # write this compiled time to the <output_path>.time file
+        print(f"\n\nTotal time to execute Query 1: {total_time}\n\n")
+        with open(filter_time_file, 'w') as tf:
+            tf.write(str(total_time))
+
     
     except Exception as e:
         print(f"\n--- FATAL ERROR during LDBC SR1 execution: {e} ---")
