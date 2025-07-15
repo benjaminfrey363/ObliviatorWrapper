@@ -177,8 +177,11 @@ def shortread3 (
 
         # Finally, calculate composite time of all obliviator operations
         total_time = 0.0
-        join_time_file = str(join1_output_path.with_suffix(".time"))
-        with open(join_time_file, 'r') as tf:
+        join1_time_file = str(join1_output_path.with_suffix(".time"))
+        with open(join1_time_file, 'r') as tf:
+            total_time += float(tf.read().strip())
+        join2_time_file = str(join2_output_path.with_suffix(".time"))
+        with open(join2_time_file, 'r') as tf:
             total_time += float(tf.read().strip())
         filter1_time_file = str(filter1_output_path.with_suffix(".time"))
         with open(filter1_time_file, 'r') as tf:
