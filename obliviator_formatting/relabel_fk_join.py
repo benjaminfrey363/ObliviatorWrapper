@@ -31,7 +31,11 @@ def relabel_for_fk_join(input_path: str, output_path: str, mapping_path: str):
         for line in infile:
             parts = line.strip().split(maxsplit=1)
             if len(parts) != 2:
-                print(f"Warning: Skipping malformed line in {input_path}: {line.strip()}")
+                # Print the raw line and its representation to see hidden characters
+                print(f"--- MALFORMED LINE DETECTED in {input_path} ---")
+                print(f"Raw line: {line}")
+                print(f"Representation: {repr(line)}")
+                print(f"-------------------------------------------------")
                 continue
             
             original_key, original_payload = parts

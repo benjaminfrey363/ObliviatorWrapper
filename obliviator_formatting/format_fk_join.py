@@ -43,11 +43,18 @@ def format_for_fk_join(
                 )
             
             for row in reader:
+                #print(f"Parsing row:\n{row}\n")
                 join_key = row[key1]
+                if not join_key.strip():
+                    print(f"WARNING: Join key {key2} empty for row in {filepath2}")
+                #print(f"Found join key: {key1} = {row[key1]}")
                 payload_string = "|".join(row[col] for col in payload1_cols)
+                #for col in payload1_cols:
+                    #print(f"Found ${col} = {row[col]}")
+                #print(f"Payload string: \n{payload_string}\n")
 
                 # If payload string is empty, use placeholder to prevent malformed lines
-                if not payload_string:
+                if not payload_string.strip():
                     payload_string = "_"
 
                 table1_rows.append(f"{join_key} {payload_string}\n")
@@ -76,10 +83,14 @@ def format_for_fk_join(
 
             for row in reader:
                 join_key = row[key2]
+
+                if not join_key.strip():
+                    print(f"WARNING: Join key {key2} empty for row in {filepath2}")
+
                 payload_string = "|".join(row[col] for col in payload2_cols)
 
                 # If payload string is empty, use placeholder to prevent malformed lines
-                if not payload_string:
+                if not payload_string.strip():
                     payload_string = "_"
 
                 table2_rows.append(f"{join_key} {payload_string}\n")

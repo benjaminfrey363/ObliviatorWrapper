@@ -53,20 +53,22 @@ def shortread6 (
 
     try:
 
-        # For now do Comment implementation, figure out Comment/Post discrimination later
+        # FOR NOW RESTRICT TO POSTS.
+        # Comments can be replies of comments, creating large chain of hops.
+        # Stick to posts, and do the 2 joins.
 
-        # --- Step 1: FK join of Post.csv with Comment.csv (primary key) on ParentPostId to get ContainerForumId of parent post of comment
+        # --- Step 1: FK join of Forum.csv with Post.csv to get details of container forum
         print("Step 1: Joining Post.csv with Comment.csv on ParentPostId")
         post_path = LDBC_dir_path + "/Post.csv"
-        comment_path = LDBC_dir_path + "/Comment.csv"
+        forum_path = LDBC_dir_path + "/Forum.csv"
         join_output_path = temp_dir / "sr6part1.csv"
         join_cmd = [
             "python", "fkjoin.py",
-            "--table1_path", post_path,
+            "--table1_path", forum_path,
             "--key1", "id",
-            "--payload1_cols", "ContainerForumId",
-            "--table2_path", comment_path,
-            "--key2", "ParentPostId",
+            "--payload1_cols", "title", "ModeratorPersonId",
+            "--table2_path", post_path,
+            "--key2", "ContainerForumId",
             "--payload2_cols", "id",
             "--output_path", str(join_output_path)
         ]
@@ -76,14 +78,59 @@ def shortread6 (
         print("Obliviator join exited successfully.")
 
 
-        # After execution, table format is
+        # At this point structure of table is
+        # t1.id         t1.title        t1.ModeratorPersonId    t2.id
+        # (Forum id)    (Forum title)   (ID of moderator)       (Post ID)
+        
+
+        # --- Step 2: Join result with Person.csv on ModeratorPersonId to get details of moderator
+        print("Step 2: Joining Person.csv with resulting table on ModeratorPersonId")
+        person_path = LDBC_dir_path + "/Person.csv"
+        join2_output_path = temp_dir / "sr6part2.csv"
+        join2_cmd = [
+            "python", "fkjoin.py",
+            "--table1_path", person_path,
+            "--key1", "id",
+            "--payload1_cols", "firstName", "lastName",
+            "--table2_path", join_output_path,
+            "--key2", "t1.ModeratorPersonId",
+            "--payload2_cols", "t1.id", "t1.title", "t2.id",
+            "--output_path", str(join2_output_path)
+        ]
+        if no_cleanup:
+            join2_cmd.append("--no_cleanup")
+        subprocess.run(join2_cmd, check=True, cwd=Path(__file__).parent)
+        print("Obliviator join exited successfully.")
+
+
+        # At this point structure of table is
+        # t1.id         t1.firstName    t1.lastName     t2.t1.id        t2.t1.title     t2.t2.id
+        # Person ID     Person          Person          Forum ID        Forum title     Post ID
+
+
+        # --- Step 3: Filter for selected Post
+        print("Step 3: Filtering for requested post...")
+        filter_cmd = [
+            "python", "operator1.py",
+            "--filepath", str(join2_output_path),
+            "--output_path", output_path,
+            "--filter_col", "t2.t2.id",
+            "--payload_cols", "t2.t1.id", "t2.t1.title", "t1.id", "t1.firstName", "t1.lastName",
+            "--filter_threshold_op1", str(message_id),
+            "--filter_condition_op1", "=="
+        ]
+        if no_cleanup:
+            filter_cmd.append("--no_cleanup")
+        subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
+        print("Obliviator filter exited successfully.")
+        print(f"Output of short read 6 written to {output_path}.")
 
 
 
 
 
     except Exception as e:
-        print(f"\n--- FATAL ERROR during LDBC SR5 execution: {e} ---")
+        print(f"\n--- FATAL ERROR during LDBC SR6 execution: {e} ---")
         raise
     finally:
         if not no_cleanup:
@@ -97,8 +144,8 @@ def shortread6 (
 def main():
     parser = argparse.ArgumentParser(description="Runs LDBC Interactive Short Read 6.")
     parser.add_argument("--message_id", type=int, required=True, help="The ID of the message to look up.")
-    parser.add_argument("--LDBC_dir_path", default="Big_LDBC", help="Path to LDBC database.")
-    parser.add_argument("--output_path", default="Big_LDBC/sr_output/sr6_output.csv", help="Path for the final output CSV file.")
+    parser.add_argument("--LDBC_dir_path", default="LDBC_SF1", help="Path to LDBC database.")
+    parser.add_argument("--output_path", default="LDBC_SF1/sr_output/sr6_output.csv", help="Path for the final output CSV file.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories.")
     args = parser.parse_args()
 
