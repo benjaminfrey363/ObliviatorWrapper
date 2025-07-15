@@ -245,7 +245,7 @@ def main():
     parser.add_argument("--output_path", required=True, help="Path for the final output CSV file.")
     parser.add_argument("--filter_col", required=True, help="Column name in the CSV to use for filtering.")
     parser.add_argument("--payload_cols", nargs='+', required=True, help="One or more columns to include in the payload, separated by spaces.")
-    parser.add_argument("--filter_threshold_op1", type=int, help="Numerical threshold for the filter. If not provided, no filter is applied.")
+    parser.add_argument("--filter_threshold_op1", type=int, default=-1, help="Numerical threshold for the filter. If not provided, no filter is applied.")
     parser.add_argument("--filter_condition_op1", type=str, default="<", help="Operator for the filter (e.g., '>', '<', '=='). Remember to quote operators like '>' or '<'.")
     parser.add_argument("--operator1_variant", choices=["default", "opaque_shared_memory"], default="default", help="Specify the Operator 1 variant.")
     parser.add_argument("--no_cleanup", action="store_true", help="Do not clean up temporary directories after execution.")

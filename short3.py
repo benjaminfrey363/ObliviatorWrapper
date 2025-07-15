@@ -16,6 +16,43 @@ def _cleanup_temp_dir(temp_dir_path: Path):
         except OSError as e:
             print(f"Error cleaning up temporary directory {temp_dir_path}: {e}")
 
+
+
+def combine_csvs(file1_path, file2_path, output_path):
+    """
+    Combines two CSV files with the same columns in any order.
+
+    The column order of the first file is used for the output file.
+    """
+    # First, get the header from the first file
+    with open(file1_path, 'r', newline='', encoding='utf-8') as f_in:
+        reader = csv.reader(f_in, delimiter='|')
+        # Read the first row as the header
+        header = next(reader)
+
+    # Now, open files and start combining
+    with open(output_path, 'w', newline='', encoding='utf-8') as f_out, \
+         open(file1_path, 'r', newline='', encoding='utf-8') as f1_in, \
+         open(file2_path, 'r', newline='', encoding='utf-8') as f2_in:
+
+        # Create a writer that uses the standard header
+        writer = csv.DictWriter(f_out, fieldnames=header, delimiter='|')
+        writer.writeheader()
+
+        # Process the first file
+        reader1 = csv.DictReader(f1_in, delimiter='|')
+        for row in reader1:
+            writer.writerow(row)
+
+        # Process the second file
+        reader2 = csv.DictReader(f2_in, delimiter='|')
+        for row in reader2:
+            writer.writerow(row)
+
+    print(f"Successfully combined '{file1_path}' and '{file2_path}' into '{output_path}'")
+
+
+
 # LDBC Short Read 3
 # Friends of a person
 # Given a start Person with ID $personId, retrieve all of their friends,
@@ -39,12 +76,12 @@ def shortread3 (
 
     try:
 
-        # --- Step 1: NFK join of Person.csv with Person_knows_Person.csv on Person1Id
+        # --- Step 1: NFK join of Person.csv with Person_knows_Person.csv on Person2Id
         #       find all friends of all people
         print("Step 1: Joining Person_knows_Person.csv with Person.csv on Person2Id")
         person_path = LDBC_dir_path + "/Person.csv"
         edge_path = LDBC_dir_path + "/Person_knows_Person.csv"
-        join1_output_path = temp_dir / "sr3part1.csv"
+        join1_output_path = temp_dir / "sr3join1.csv"
         join1_cmd = [
             "python", "join.py",
             "--table1_path", edge_path,
@@ -58,28 +95,84 @@ def shortread3 (
         if no_cleanup:
             join1_cmd.append("--no_cleanup")
         subprocess.run(join1_cmd, check=True, cwd=Path(__file__).parent)
-        print("Obliviator join exited successfully.")
+        print("Obliviator join 1 exited successfully.")
 
-        # At this point columns are
+        
+        # Address asymmetry of edge table
+        # -- Step 2: NFK join of Person.csv with Person_knows_Person.csv on Person1Id
+        #       find all friends of all people, reversing direction of edges
+        #       friendship table is not symmetric, so must perform 2 joins to get all friends.
+        #       We will then filter the join outputs separately and combine the results
+        print("Step 2: Joining Person_knows_Person.csv with Person.csv on Person1Id")
+        join2_output_path = temp_dir / "sr3join2.csv"
+        join2_cmd = [
+            "python", "join.py",
+            "--table1_path", edge_path,
+            "--key1", "Person1Id",
+            "--payload1_cols", "Person2Id", "creationDate",
+            "--table2_path", person_path,
+            "--key2", "id",
+            "--payload2_cols", "firstName", "lastName",
+            "--output_path", str(join2_output_path)
+        ]
+        if no_cleanup:
+            join2_cmd.append("--no_cleanup")
+        subprocess.run(join2_cmd, check=True, cwd=Path(__file__).parent)
+        print("Obliviator join 2 exited successfully.")
+
+
+
+        # At this point columns in join1_output are
         # t1.Person2Id|t1.Person1Id|t1.creationDate|t2.firstName|t2.lastName
-        # filter this file on t1.Person1Id to find friends of person
+        # filter this file on t1.Person1Id to find friends of person (in first direction)
 
-        # --- Step 2: Filter this joined output on t1.Person1Id to get details of
+        # --- Step 3: Filter joint output 1 on t1.Person1Id to get details of
         #       friends of specified person
-        print(f"Step 2: Filtering result of join on $Person1Id = {person_id}")
-        filter_cmd = [
+        print(f"Step 3: Filtering result of first join on $Person1Id = {person_id}")
+
+        print(f"First filtering on Person1Id = {person_id}...")
+        filter1_output_path = temp_dir / "sr3filter1.csv"
+        filter1_cmd = [
             "python", "operator1.py",
             "--filepath", str(join1_output_path),
-            "--output_path", output_path,
+            "--output_path", str(filter1_output_path),
             "--filter_col", "t1.Person1Id",
             "--payload_cols", "t1.Person2Id", "t1.creationDate", "t2.firstName", "t2.lastName",
             "--filter_threshold_op1", str(person_id),
             "--filter_condition_op1", "=="
         ]
         if no_cleanup:
-            filter_cmd.append("--no_cleanup")
-        subprocess.run(filter_cmd, check=True, cwd=Path(__file__).parent)
-        print("Obliviator filter exited successfully.")
+            filter1_cmd.append("--no_cleanup")
+        subprocess.run(filter1_cmd, check=True, cwd=Path(__file__).parent)
+        print("Obliviator filter 1 exited successfully.")
+
+
+        # At this point columns in join2_output are
+        # t1.Person1Id|t1.Person2Id|t1.creationDate|t2.firstName|t2.lastName
+        # filter this file on t1.Person2Id to find friends of people (in reverse direction)
+        print(f"Step 4: Filtering result of second join on $Person2Id = {person_id}")
+
+        print(f"First filtering on Person2Id = {person_id}...")
+        filter2_output_path = temp_dir / "sr3filter2.csv"
+        filter2_cmd = [
+            "python", "operator1.py",
+            "--filepath", str(join2_output_path),
+            "--output_path", str(filter2_output_path),
+            "--filter_col", "t1.Person2Id",
+            "--payload_cols", "t1.Person1Id", "t1.creationDate", "t2.firstName", "t2.lastName",
+            "--filter_threshold_op1", str(person_id),
+            "--filter_condition_op1", "=="
+        ]
+        if no_cleanup:
+            filter2_cmd.append("--no_cleanup")
+        subprocess.run(filter2_cmd, check=True, cwd=Path(__file__).parent)
+        print("Obliviator filter 2 exited successfully.")
+
+
+
+        # combine the two filtered CSVs to obtain the final output
+        combine_csvs ( str(filter1_output_path), str(filter2_output_path), output_path )
+
         print(f"Output of short read 3 written to {output_path}.")
 
         # Finally, calculate composite time of all obliviator operations
@@ -87,13 +180,15 @@ def shortread3 (
         join_time_file = str(join1_output_path.with_suffix(".time"))
         with open(join_time_file, 'r') as tf:
             total_time += float(tf.read().strip())
-        output_path_obj = Path(output_path)
-        filter_time_file = str(output_path_obj.with_suffix(".time"))
-        with open(filter_time_file, 'r') as tf:
+        filter1_time_file = str(filter1_output_path.with_suffix(".time"))
+        with open(filter1_time_file, 'r') as tf:
+            total_time += float(tf.read().strip())
+        filter2_time_file = str(filter2_output_path.with_suffix(".time"))
+        with open(filter2_time_file, 'r') as tf:
             total_time += float(tf.read().strip())
         # write this compiled time to the <output_path>.time file
         print(f"\n\nTotal time to execute Query 3: {total_time}\n\n")
-        with open(filter_time_file, 'w') as tf:
+        with open(Path(output_path).with_suffix('.time'), 'w') as tf:
             tf.write(str(total_time))
 
     
