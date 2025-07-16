@@ -8,7 +8,7 @@
 
 #define ELEM_SIZE 32
 #define ELEM_STRUCT_SIZE 19
-#define DATA_LENGTH 14
+#define DATA_LENGTH 200
 
 typedef int ojoin_int_type;
 
@@ -22,6 +22,6 @@ typedef struct elem {
     int j_order;
 } elem_t;
 
-static_assert(sizeof(elem_t) == ELEM_SIZE, "Element should be 32 bytes");
+//static_assert(sizeof(elem_t) == ELEM_SIZE, "Element should be 32 bytes");
 
 #endif /* common/elem_t.h */

@@ -6,7 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-#define DATA_LENGTH 47
+#define DATA_LENGTH 200
 
 typedef long long ojoin_int_type;
 
