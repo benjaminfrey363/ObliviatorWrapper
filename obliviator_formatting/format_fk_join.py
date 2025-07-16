@@ -45,8 +45,11 @@ def format_for_fk_join(
             for row in reader:
                 #print(f"Parsing row:\n{row}\n")
                 join_key = row[key1]
+                
+                # Added functionality: skip rows where join key is empty
                 if not join_key.strip():
-                    print(f"WARNING: Join key {key2} empty for row in {filepath2}")
+                    continue
+
                 #print(f"Found join key: {key1} = {row[key1]}")
                 payload_string = "|".join(row[col] for col in payload1_cols)
                 #for col in payload1_cols:
@@ -83,6 +86,10 @@ def format_for_fk_join(
 
             for row in reader:
                 join_key = row[key2]
+
+                # Added functionality: skip rows where join key is empty
+                if not join_key.strip():
+                    continue
 
                 if not join_key.strip():
                     print(f"WARNING: Join key {key2} empty for row in {filepath2}")

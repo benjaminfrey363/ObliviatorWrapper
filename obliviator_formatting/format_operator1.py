@@ -50,6 +50,10 @@ def format_for_operator1(
             for row in reader:
                 filter_value = row[filter_col]
                 
+                # Fix - skip rows that do now have a valid filter_col attribute
+                if not filter_value.strip():
+                    continue
+                
                 # Create the pipe-separated payload string
                 payload_values = [row[col] for col in payload_cols]
                 payload_string = "|".join(payload_values)
