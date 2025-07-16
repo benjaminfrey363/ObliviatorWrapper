@@ -139,7 +139,7 @@ def shortread6 (
         with open(filter_time_file, 'r') as tf:
             total_time += float(tf.read().strip())
         # write this compiled time to the <output_path>.time file
-        print(f"\n\nTotal time to execute Query 5: {total_time}\n\n")
+        print(f"\n\nTotal time to execute Query 6: {total_time}\n\n")
         with open(filter_time_file, 'w') as tf:
             tf.write(str(total_time))
 
